@@ -1,0 +1,18 @@
+REPOSITORY NAME SUGGESTION
+appendicitis-risk-calculator
+
+REPOSITORY DESCRIPTION SUGGESTION
+Bilingual Streamlit calculator for predicting complicated appendicitis using 3 multivariable models.
+
+STREAMLIT DEPLOY SETTINGS
+Repository: appendicitis-risk-calculator
+Branch: main
+Python version: 3.12
+Suggested App URL: appendicitis-risk-pnt-gdg
+
+MAIN FILE PATH
+If you upload the whole folder appendicitis_streamlit_app: appendicitis_streamlit_app/app.py
+If you upload only the files inside that folder to repo root: app.py
+
+COMMIT MESSAGE SUGGESTION
+Initial public deployment of bilingual appendicitis risk calculator

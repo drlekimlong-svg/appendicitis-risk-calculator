@@ -1,0 +1,938 @@
+import base64
+import html
+import math
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+
+from models_config import APP_METADATA, INPUT_DEFS, MODELS, SECTION_ORDER, TERM_RULES
+
+
+ROOT = Path(__file__).resolve().parent
+ASSETS_DIR = ROOT / "assets"
+LOGO_HOSPITAL_PATH = ASSETS_DIR / "logo_gia_dinh.png"
+LOGO_UNIVERSITY_PATH = ASSETS_DIR / "logo_pnt.png"
+
+
+st.set_page_config(
+    page_title="Complicated Appendicitis Risk Calculator",
+    page_icon="🩺",
+    layout="wide",
+)
+
+
+TEXT = {
+    "en": {
+        "language": "Language",
+        "model_selection": "Model selection",
+        "choose_model": "Choose one model",
+        "research_warning": "Research / educational use only. Do not use this web app as a stand-alone basis for diagnosis or treatment.",
+        "app_title": "Complicated Appendicitis Risk Calculator",
+        "app_subtitle": "Risk estimation using three author-supplied multivariable models.",
+        "input_form": "Input form",
+        "input_form_caption": "Only the variables required by the selected model are shown.",
+        "calculate_risk": "Calculate risk",
+        "risk_calculated": "Risk calculated successfully.",
+        "prediction": "Prediction",
+        "enter_values_prompt": "Enter the variables in the form and click **Calculate risk**.",
+        "predicted_probability": "Predicted probability of complicated appendicitis",
+        "ci_label": "95% CI",
+        "ci_note": "This interval is computed from the model's variance-covariance matrix on the logit scale and then transformed back to probability.",
+        "ci_not_available": "95% CI is not shown because no variance-covariance matrix was provided for this model.",
+        "linear_predictor": "Linear predictor (LP)",
+        "crp_transformed": "CRP transformed for the model",
+        "show_contributions": "Show term-by-term contributions",
+        "show_coefficients": "Show coefficient table from the workbook",
+        "show_formula": "Show formula exactly as stored in the workbook",
+        "model_summary": "Model summary",
+        "workbook_notes": "Workbook notes",
+        "required_inputs": "Inputs required by this model",
+        "yes": "Yes",
+        "no": "No",
+        "print_report": "Print",
+        "printable_report": "Printable report",
+        "printable_report_caption": "Use the print button below to create a paper or PDF summary of the submitted variables and prediction result.",
+        "report_title": "Prediction summary",
+        "report_datetime": "Generated at",
+        "report_model": "Model",
+        "report_inputs": "Submitted variables",
+        "report_results": "Prediction results",
+        "report_parameter": "Parameter",
+        "report_value": "Value",
+        "report_footer": "For research and educational use. This calculator does not replace clinical judgment, imaging review, pathology, or institutional treatment protocols.",
+        "warning_negative": "cannot be negative.",
+        "coefficient_term": "Term",
+        "coefficient_beta": "Beta",
+        "coefficient_coding": "Coding / reference",
+        "coefficient_or": "OR = exp(beta)",
+        "option_none": "None",
+        "option_guarding": "Guarding",
+        "option_rebound_positive": "Rebound tenderness positive",
+        "option_fat_none": "None",
+        "option_fat_mild": "Mild",
+        "option_fat_moderate": "Moderate",
+        "option_fat_severe": "Severe",
+        "notes_interactions": "Interactions",
+        "notes_missing": "Missing data handling",
+        "notes_note": "Note",
+        "notes_splines": "Splines",
+        "notes_vcov": "vcov",
+        "report_probability": "Predicted probability",
+        "report_lp": "Linear predictor (LP)",
+        "report_crp_transformed": "CRP transformed for the model",
+        "affiliation_heading": "Authors",
+    },
+    "vi": {
+        "language": "Ngôn ngữ",
+        "model_selection": "Lựa chọn mô hình",
+        "choose_model": "Chọn mô hình",
+        "research_warning": "Chỉ dùng cho nghiên cứu / giáo dục. Không sử dụng webapp này như căn cứ độc lập cho chẩn đoán hoặc điều trị.",
+        "app_title": "Công cụ tính nguy cơ viêm ruột thừa có biến chứng",
+        "app_subtitle": "Ước tính nguy cơ bằng ba mô hình đa biến do nhóm tác giả cung cấp.",
+        "input_form": "Biểu mẫu nhập liệu",
+        "input_form_caption": "Chỉ hiển thị các biến cần thiết cho mô hình đang chọn.",
+        "calculate_risk": "Tính nguy cơ",
+        "risk_calculated": "Đã tính nguy cơ thành công.",
+        "prediction": "Prediction",
+        "enter_values_prompt": "Nhập các biến trong biểu mẫu rồi bấm **Tính nguy cơ**.",
+        "predicted_probability": "Xác suất dự đoán viêm ruột thừa có biến chứng",
+        "ci_label": "KTC 95%",
+        "ci_note": "Khoảng tin cậy này được tính từ ma trận hiệp phương sai-phương sai của mô hình trên thang logit, sau đó chuyển ngược về xác suất.",
+        "ci_not_available": "Không hiển thị KTC 95% vì mô hình này không có ma trận hiệp phương sai-phương sai (vcov).",
+        "linear_predictor": "Bộ dự báo tuyến tính (LP)",
+        "crp_transformed": "CRP đã biến đổi cho mô hình",
+        "show_contributions": "Xem đóng góp của từng hạng tử",
+        "show_coefficients": "Xem bảng hệ số từ workbook",
+        "show_formula": "Xem công thức đúng như trong workbook",
+        "model_summary": "Tóm tắt mô hình",
+        "workbook_notes": "Ghi chú từ workbook",
+        "required_inputs": "Các biến cần nhập cho mô hình này",
+        "yes": "Có",
+        "no": "Không",
+        "print_report": "In",
+        "printable_report": "Bản in tổng hợp",
+        "printable_report_caption": "Nhấn nút in bên dưới để tạo bản in giấy hoặc PDF gồm các biến đã nhập và kết quả dự đoán.",
+        "report_title": "Tóm tắt kết quả dự đoán",
+        "report_datetime": "Thời điểm tạo",
+        "report_model": "Mô hình",
+        "report_inputs": "Các biến đã nhập",
+        "report_results": "Kết quả dự đoán",
+        "report_parameter": "Thông số",
+        "report_value": "Giá trị",
+        "report_footer": "Chỉ dùng cho nghiên cứu và giáo dục. Công cụ này không thay thế đánh giá lâm sàng, đọc hình ảnh, giải phẫu bệnh hoặc phác đồ điều trị của cơ sở.",
+        "warning_negative": "không được âm.",
+        "coefficient_term": "Hạng tử",
+        "coefficient_beta": "Hệ số beta",
+        "coefficient_coding": "Mã hóa / mốc tham chiếu",
+        "coefficient_or": "OR = exp(beta)",
+        "option_none": "Không",
+        "option_guarding": "Đề kháng",
+        "option_rebound_positive": "Phản ứng dội dương tính",
+        "option_fat_none": "Không",
+        "option_fat_mild": "Ít",
+        "option_fat_moderate": "Trung bình",
+        "option_fat_severe": "Nhiều",
+        "notes_interactions": "Tương tác",
+        "notes_missing": "Xử lý dữ liệu thiếu",
+        "notes_note": "Ghi chú",
+        "notes_splines": "Splines",
+        "notes_vcov": "vcov",
+        "report_probability": "Xác suất dự đoán",
+        "report_lp": "Bộ dự báo tuyến tính (LP)",
+        "report_crp_transformed": "CRP đã biến đổi cho mô hình",
+        "affiliation_heading": "Tác giả",
+    },
+}
+
+
+SECTION_LABELS = {
+    "Patient characteristics": {"en": "Patient characteristics", "vi": "Đặc điểm người bệnh"},
+    "Clinical findings": {"en": "Clinical findings", "vi": "Dấu hiệu lâm sàng"},
+    "Laboratory findings": {"en": "Laboratory findings", "vi": "Xét nghiệm"},
+    "CT findings": {"en": "CT findings", "vi": "Hình ảnh CT"},
+}
+
+
+INPUT_LABELS = {
+    "clin_anorexia": {"en": "Anorexia", "vi": "Chán ăn"},
+    "clin_guarding_rebound_status": {"en": "Guarding / rebound status", "vi": "Đề kháng thành bụng / phản ứng dội"},
+    "clin_heart_rate": {"en": "Heart rate (beats/min)", "vi": "Nhịp tim (lần/phút)"},
+    "clin_nausea": {"en": "Nausea", "vi": "Buồn nôn"},
+    "clin_pain_duration_hours": {"en": "Pain duration before admission (hours)", "vi": "Thời gian đau trước nhập viện (giờ)"},
+    "ct_appendix_max_diameter_mm": {"en": "Maximum appendiceal diameter (mm)", "vi": "Đường kính lớn nhất ruột thừa (mm)"},
+    "ct_appendix_wall_thickening": {"en": "Appendiceal wall thickening", "vi": "Dày thành ruột thừa"},
+    "ct_fat_stranding_grade": {"en": "Periappendiceal fat stranding grade", "vi": "Mức độ thâm nhiễm mỡ quanh ruột thừa"},
+    "ct_fecalith_present": {"en": "Fecalith present", "vi": "Có sỏi phân"},
+    "ct_ileus_or_sbo": {"en": "Ileus or small-bowel obstruction", "vi": "Liệt ruột hoặc tắc ruột non"},
+    "ct_luminal_fluid": {"en": "Luminal fluid", "vi": "Dịch trong lòng ruột thừa"},
+    "ct_periappendiceal_free_fluid": {"en": "Periappendiceal free fluid", "vi": "Dịch tự do quanh ruột thừa"},
+    "ct_wall_non_enhancement": {"en": "Wall non-enhancement", "vi": "Thành ruột thừa không ngấm thuốc"},
+    "demo_age_years": {"en": "Age (years)", "vi": "Tuổi (năm)"},
+    "lab_crp": {"en": "CRP (mg/L)", "vi": "CRP (mg/L)"},
+    "lab_lymphocyte_abs": {"en": "Absolute lymphocyte count (×10⁹/L)", "vi": "Số lượng lympho tuyệt đối (×10⁹/L)"},
+    "lab_wbc": {"en": "White blood cell count (×10⁹/L)", "vi": "Bạch cầu (×10⁹/L)"},
+}
+
+
+INPUT_HELP = {
+    "demo_age_years": {"en": "Adult patients only.", "vi": "Chỉ áp dụng cho người lớn."},
+    "lab_crp": {
+        "en": "Internally transformed as log(1 + CRP) when required by the model.",
+        "vi": "Sẽ được biến đổi nội bộ thành log(1 + CRP) khi mô hình yêu cầu.",
+    },
+}
+
+
+VALUE_LABELS = {
+    "clin_guarding_rebound_status": {
+        "none": {"en": "None", "vi": "Không"},
+        "guarding": {"en": "Guarding", "vi": "Đề kháng"},
+        "rebound_positive": {"en": "Rebound tenderness positive", "vi": "Phản ứng dội dương tính"},
+    },
+    "ct_fat_stranding_grade": {
+        "Không": {"en": "None", "vi": "Không"},
+        "Ít": {"en": "Mild", "vi": "Ít"},
+        "Trung Bình": {"en": "Moderate", "vi": "Trung bình"},
+        "Nhiều": {"en": "Severe", "vi": "Nhiều"},
+    },
+}
+
+
+MODEL_TRANSLATIONS = {
+    "model1_primary_lasso": {
+        "short_en": "Model 1 — Primary LASSO",
+        "short_vi": "Mô hình 1 — LASSO đầy đủ",
+        "display_en": "Model 1 — Primary full penalized logistic LASSO",
+        "display_vi": "Mô hình 1 — Hồi quy logistic LASSO phạt đầy đủ",
+        "title_en": "Model 1. Primary full penalized logistic LASSO (lambda.1se)",
+        "title_vi": "Mô hình 1. Hồi quy logistic LASSO phạt đầy đủ (lambda.1se)",
+    },
+    "model2_parsimonious": {
+        "short_en": "Model 2 — Parsimonious LASSO",
+        "short_vi": "Mô hình 2 — LASSO tinh gọn",
+        "display_en": "Model 2 — Parsimonious constrained logistic LASSO",
+        "display_vi": "Mô hình 2 — Hồi quy logistic LASSO ràng buộc tinh gọn",
+        "title_en": "Model 2. Parsimonious constrained logistic LASSO (lambda_5_1se)",
+        "title_vi": "Mô hình 2. Hồi quy logistic LASSO ràng buộc tinh gọn (lambda_5_1se)",
+    },
+    "model3_stepwise": {
+        "short_en": "Model 3 — Stepwise logistic regression",
+        "short_vi": "Mô hình 3 — Hồi quy logistic từng bước",
+        "display_en": "Model 3 — Backward stepwise logistic regression (AIC)",
+        "display_vi": "Mô hình 3 — Hồi quy logistic loại biến lùi từng bước (AIC)",
+        "title_en": "Model 3. Backward stepwise logistic regression (AIC)",
+        "title_vi": "Mô hình 3. Hồi quy logistic loại biến lùi từng bước (AIC)",
+    },
+}
+
+
+NOTE_LABELS = {
+    "Interactions": {"en": "Interactions", "vi": "Tương tác"},
+    "Missing data handling": {"en": "Missing data handling", "vi": "Xử lý dữ liệu thiếu"},
+    "Note": {"en": "Note", "vi": "Ghi chú"},
+    "Splines": {"en": "Splines", "vi": "Splines"},
+    "vcov": {"en": "vcov", "vi": "vcov"},
+}
+
+
+def t(lang: str, key: str) -> str:
+    return TEXT[lang][key]
+
+
+AUTHORS_BY_LANG = {
+    "en": APP_METADATA.get(
+        "author_names_en",
+        APP_METADATA.get(
+            "author_names",
+            [name.strip() for name in APP_METADATA.get("author_name", "").split(";") if name.strip()],
+        ),
+    ),
+    "vi": APP_METADATA.get(
+        "author_names_vi",
+        APP_METADATA.get(
+            "author_names",
+            [name.strip() for name in APP_METADATA.get("author_name", "").split(";") if name.strip()],
+        ),
+    ),
+}
+
+AFFILIATIONS = {
+    "en": APP_METADATA.get(
+        "affiliation_lines_en",
+        APP_METADATA.get(
+            "affiliation_lines",
+            [
+                "Department of Surgery, Faculty of Medicine, Pham Ngoc Thach University of Medicine",
+                "Nhan Dan Gia Dinh Hospital",
+            ],
+        ),
+    ),
+    "vi": APP_METADATA.get(
+        "affiliation_lines_vi",
+        [
+            "Bộ môn Ngoại khoa - Khoa Y - Trường Đại học Y khoa Phạm Ngọc Thạch",
+            "Bệnh viện Nhân dân Gia Định",
+        ],
+    ),
+}
+
+FOOTER_NOTES = {
+    "en": APP_METADATA.get(
+        "footer_note_en",
+        APP_METADATA.get(
+            "footer_note",
+            "For research and educational use. This calculator does not replace clinical judgment, imaging review, pathology, or institutional treatment protocols.",
+        ),
+    ),
+    "vi": APP_METADATA.get(
+        "footer_note_vi",
+        "Chỉ dùng cho nghiên cứu và giáo dục. Công cụ này không thay thế đánh giá lâm sàng, đọc hình ảnh, giải phẫu bệnh hoặc phác đồ điều trị của cơ sở.",
+    ),
+}
+
+
+def image_to_base64(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return base64.b64encode(path.read_bytes()).decode("utf-8")
+
+
+LOGO_HOSPITAL_BASE64 = image_to_base64(LOGO_HOSPITAL_PATH)
+LOGO_UNIVERSITY_BASE64 = image_to_base64(LOGO_UNIVERSITY_PATH)
+
+
+def sigmoid(x: float) -> float:
+    """Numerically stable logistic function."""
+    if x >= 0:
+        z = math.exp(-x)
+        return 1.0 / (1.0 + z)
+    z = math.exp(x)
+    return z / (1.0 + z)
+
+
+def evaluate_term(term: str, values: dict) -> float:
+    """Convert user inputs to the design-matrix value for one statistical term."""
+    rule = TERM_RULES[term]
+    rule_type = rule["type"]
+    input_name = rule["input"]
+
+    if rule_type == "direct":
+        return float(values[input_name])
+
+    if rule_type == "bool":
+        return 1.0 if bool(values[input_name]) else 0.0
+
+    if rule_type == "equals":
+        return 1.0 if values[input_name] == rule["value"] else 0.0
+
+    if rule_type == "log1p":
+        return math.log1p(float(values[input_name]))
+
+    raise ValueError(f"Unsupported rule type for term {term}: {rule_type}")
+
+
+def model_required_inputs(model_key: str) -> list[str]:
+    """Return only the user-input variables actually needed by the active terms."""
+    model = MODELS[model_key]
+    needed = []
+    seen = set()
+
+    for term in model["active_terms"]:
+        rule = TERM_RULES[term]
+        input_name = rule["input"]
+        if input_name not in seen:
+            seen.add(input_name)
+            needed.append(input_name)
+
+    return needed
+
+
+def input_label(input_name: str, lang: str) -> str:
+    return INPUT_LABELS.get(input_name, {}).get(lang, INPUT_DEFS[input_name].get("label", input_name))
+
+
+def input_help(input_name: str, lang: str):
+    return INPUT_HELP.get(input_name, {}).get(lang, INPUT_DEFS[input_name].get("help"))
+
+
+def section_label(section: str, lang: str) -> str:
+    return SECTION_LABELS.get(section, {}).get(lang, section)
+
+
+def option_label(input_name: str, value, lang: str) -> str:
+    if input_name in VALUE_LABELS and value in VALUE_LABELS[input_name]:
+        return VALUE_LABELS[input_name][value][lang]
+    return str(value)
+
+
+def bool_label(value: bool, lang: str) -> str:
+    return t(lang, "yes") if value else t(lang, "no")
+
+
+def model_short_name(model_key: str, lang: str) -> str:
+    key = "short_en" if lang == "en" else "short_vi"
+    return MODEL_TRANSLATIONS.get(model_key, {}).get(key, MODELS[model_key]["short_name"])
+
+
+def model_display_name(model_key: str, lang: str) -> str:
+    key = "display_en" if lang == "en" else "display_vi"
+    return MODEL_TRANSLATIONS.get(model_key, {}).get(key, MODELS[model_key]["display_name"])
+
+
+def model_title(model_key: str, lang: str) -> str:
+    key = "title_en" if lang == "en" else "title_vi"
+    return MODEL_TRANSLATIONS.get(model_key, {}).get(key, MODELS[model_key]["title"])
+
+
+def note_label(label: str, lang: str) -> str:
+    return NOTE_LABELS.get(label, {}).get(lang, label)
+
+
+def format_number(value: float, fmt: str) -> str:
+    try:
+        return fmt % float(value)
+    except Exception:
+        return str(value)
+
+
+def format_value_for_display(input_name: str, value, lang: str) -> str:
+    spec = INPUT_DEFS[input_name]
+
+    if spec["type"] == "number":
+        return format_number(float(value), spec["format"])
+
+    if spec["type"] == "bool":
+        return bool_label(bool(value), lang)
+
+    if spec["type"] == "select":
+        return option_label(input_name, value, lang)
+
+    return str(value)
+
+
+def validate_inputs(model_key: str, values: dict, lang: str) -> list[str]:
+    warnings = []
+    required = model_required_inputs(model_key)
+
+    for name in required:
+        value = values[name]
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value < 0:
+            warnings.append(f"{input_label(name, lang)} {t(lang, 'warning_negative')}")
+
+    return warnings
+
+
+def predict(model_key: str, values: dict) -> dict:
+    """Compute LP, predicted probability, and CI if vcov is available."""
+    model = MODELS[model_key]
+    lp = float(model["intercept"])
+
+    contributions = []
+    for term in model["active_terms"]:
+        x_value = evaluate_term(term, values)
+        beta = float(model["coefficients"][term])
+        contribution = beta * x_value
+        coding = next((row["coding"] for row in model["rows"] if row["term"] == term), term)
+        contributions.append(
+            {
+                "term": term,
+                "display": coding,
+                "x_value": x_value,
+                "beta": beta,
+                "contribution": contribution,
+            }
+        )
+        lp += contribution
+
+    probability = sigmoid(lp)
+
+    ci = None
+    if model.get("ci_supported"):
+        ci_order = model["ci_order"]
+        x_vector = np.array([1.0] + [evaluate_term(term, values) for term in ci_order[1:]], dtype=float)
+        vcov = np.array(model["vcov"], dtype=float)
+        var_lp = float(x_vector @ vcov @ x_vector.T)
+        var_lp = max(var_lp, 0.0)
+        se_lp = math.sqrt(var_lp)
+        z = 1.96
+        ci_lp_low = lp - z * se_lp
+        ci_lp_high = lp + z * se_lp
+        ci = {
+            "lp_low": ci_lp_low,
+            "lp_high": ci_lp_high,
+            "prob_low": sigmoid(ci_lp_low),
+            "prob_high": sigmoid(ci_lp_high),
+            "se_lp": se_lp,
+        }
+
+    return {
+        "lp": lp,
+        "probability": probability,
+        "ci": ci,
+        "contributions": pd.DataFrame(contributions),
+        "transformed_crp": math.log1p(float(values["lab_crp"])) if "lab_crp" in values else None,
+    }
+
+
+def render_widget(input_name: str, lang: str):
+    """Render one Streamlit widget and return the internal value."""
+    spec = INPUT_DEFS[input_name]
+    widget_key = f"widget_{input_name}"
+    label = input_label(input_name, lang)
+    help_text = input_help(input_name, lang)
+
+    if spec["type"] == "number":
+        return st.number_input(
+            label,
+            min_value=float(spec["min_value"]),
+            max_value=float(spec["max_value"]),
+            value=float(spec["default"]),
+            step=float(spec["step"]),
+            format=spec["format"],
+            help=help_text,
+            key=widget_key,
+        )
+
+    if spec["type"] == "bool":
+        return st.selectbox(
+            label,
+            options=[False, True],
+            index=1 if spec.get("default", False) else 0,
+            format_func=lambda val: bool_label(val, lang),
+            help=help_text,
+            key=widget_key,
+        )
+
+    if spec["type"] == "select":
+        option_values = [option["value"] for option in spec["options"]]
+        default_value = spec["default"]
+        default_index = option_values.index(default_value) if default_value in option_values else 0
+        return st.selectbox(
+            label,
+            options=option_values,
+            index=default_index,
+            format_func=lambda val: option_label(input_name, val, lang),
+            help=help_text,
+            key=widget_key,
+        )
+
+    raise ValueError(f"Unsupported widget type: {spec['type']}")
+
+
+def render_header(lang: str):
+    left, center, right = st.columns([0.16, 0.68, 0.16], gap="small")
+
+    with left:
+        if LOGO_HOSPITAL_PATH.exists():
+            st.image(str(LOGO_HOSPITAL_PATH), width=100)
+
+    with center:
+        authors_text = ", ".join(AUTHORS_BY_LANG[lang])
+        affiliation_lines = "<br>".join(html.escape(line) for line in AFFILIATIONS[lang])
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding-top:4px;">
+                <h1 style="margin-bottom:0.15rem;">{html.escape(t(lang, 'app_title'))}</h1>
+                <div style="font-size:1.05rem; margin-bottom:0.55rem;">{html.escape(t(lang, 'app_subtitle'))}</div>
+                <div style="font-weight:600; margin-bottom:0.25rem; line-height:1.45;">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
+                <div style="line-height:1.45;">{affiliation_lines}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with right:
+        if LOGO_UNIVERSITY_PATH.exists():
+            st.image(str(LOGO_UNIVERSITY_PATH), width=100)
+
+
+def show_model_summary(model_key: str, lang: str):
+    model = MODELS[model_key]
+    st.subheader(t(lang, "model_summary"))
+    st.markdown(f"**{model_display_name(model_key, lang)}**")
+    st.caption(model_title(model_key, lang))
+
+    with st.expander(t(lang, "workbook_notes"), expanded=True):
+        for label, value in model["notes"].items():
+            st.write(f"- **{note_label(label, lang)}:** {value}")
+
+    required_fields = model_required_inputs(model_key)
+    required_labels = [input_label(name, lang) for name in required_fields]
+    with st.expander(t(lang, "required_inputs"), expanded=True):
+        for label in required_labels:
+            st.write(f"- {label}")
+
+    with st.expander(t(lang, "show_coefficients"), expanded=False):
+        coef_df = pd.DataFrame(model["rows"]).rename(
+            columns={
+                "term": t(lang, "coefficient_term"),
+                "beta": t(lang, "coefficient_beta"),
+                "coding": t(lang, "coefficient_coding"),
+                "or": t(lang, "coefficient_or"),
+            }
+        )
+        st.dataframe(coef_df, use_container_width=True, hide_index=True)
+
+    with st.expander(t(lang, "show_formula"), expanded=False):
+        st.code(model["formula"])
+
+
+def build_print_report_html(model_key: str, lang: str) -> str:
+    result = st.session_state.get(f"result_{model_key}")
+    values = st.session_state.get(f"inputs_{model_key}")
+    if not result or not values:
+        return ""
+
+    required_inputs = model_required_inputs(model_key)
+    input_rows = "".join(
+        f"<tr><td>{html.escape(input_label(name, lang))}</td><td>{html.escape(format_value_for_display(name, values[name], lang))}</td></tr>"
+        for name in required_inputs
+    )
+
+    probability_pct = result["probability"] * 100.0
+    result_rows = [
+        (
+            t(lang, "report_probability"),
+            f"{probability_pct:.1f}%",
+        ),
+        (
+            t(lang, "report_lp"),
+            f"{result['lp']:.4f}",
+        ),
+    ]
+
+    if result["ci"] is not None:
+        ci_low = result["ci"]["prob_low"] * 100.0
+        ci_high = result["ci"]["prob_high"] * 100.0
+        result_rows.insert(1, (t(lang, "ci_label"), f"{ci_low:.1f}% to {ci_high:.1f}%" if lang == 'en' else f"{ci_low:.1f}% đến {ci_high:.1f}%"))
+
+    if "lab_crp_model" in MODELS[model_key]["active_terms"] and result["transformed_crp"] is not None:
+        result_rows.append((t(lang, "report_crp_transformed"), f"{result['transformed_crp']:.4f}"))
+
+    result_html = "".join(
+        f"<tr><td>{html.escape(label)}</td><td>{html.escape(value)}</td></tr>" for label, value in result_rows
+    )
+
+    authors_text = ", ".join(AUTHORS_BY_LANG[lang])
+    model_text = model_display_name(model_key, lang)
+    now_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    affiliations_html = "<br>".join(html.escape(line) for line in AFFILIATIONS[lang])
+
+    logo_hospital_html = (
+        f"<img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo' style='max-width:72px; max-height:72px;'>"
+        if LOGO_HOSPITAL_BASE64
+        else ""
+    )
+    logo_university_html = (
+        f"<img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo' style='max-width:72px; max-height:72px;'>"
+        if LOGO_UNIVERSITY_BASE64
+        else ""
+    )
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            :root {{
+                --blue: #1f4e79;
+                --border: #d7dee8;
+                --muted: #5a6570;
+                --bg: #ffffff;
+            }}
+            body {{
+                font-family: Arial, Helvetica, sans-serif;
+                background: var(--bg);
+                color: #111827;
+                margin: 0;
+                padding: 16px;
+            }}
+            .toolbar {{
+                margin-bottom: 14px;
+            }}
+            .print-btn {{
+                background: var(--blue);
+                color: white;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+            }}
+            .report {{
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 18px;
+            }}
+            .header-grid {{
+                display: grid;
+                grid-template-columns: 84px 1fr 84px;
+                align-items: center;
+                column-gap: 12px;
+                margin-bottom: 10px;
+            }}
+            .title-block {{
+                text-align: center;
+            }}
+            .title-block h1 {{
+                font-size: 24px;
+                margin: 0 0 4px 0;
+                color: var(--blue);
+            }}
+            .subtitle {{
+                margin: 0 0 8px 0;
+                font-size: 14px;
+            }}
+            .authors {{
+                font-size: 12.5px;
+                font-weight: 700;
+                margin-bottom: 4px;
+                line-height: 1.45;
+            }}
+            .affiliations {{
+                font-size: 12.5px;
+                line-height: 1.45;
+            }}
+            .meta {{
+                margin-top: 14px;
+                margin-bottom: 14px;
+                padding: 12px;
+                background: #f7fafc;
+                border-radius: 10px;
+                border: 1px solid var(--border);
+                font-size: 13px;
+                line-height: 1.6;
+            }}
+            h2 {{
+                font-size: 18px;
+                margin: 18px 0 8px 0;
+                color: var(--blue);
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 8px;
+            }}
+            th, td {{
+                border: 1px solid var(--border);
+                padding: 8px 10px;
+                vertical-align: top;
+                font-size: 13px;
+            }}
+            th {{
+                background: #eef4fb;
+                text-align: left;
+            }}
+            .footer {{
+                margin-top: 18px;
+                color: var(--muted);
+                font-size: 12px;
+                line-height: 1.5;
+            }}
+            @media print {{
+                body {{
+                    padding: 0;
+                }}
+                .toolbar {{
+                    display: none;
+                }}
+                .report {{
+                    border: none;
+                    padding: 0;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="toolbar">
+            <button class="print-btn" onclick="window.print()">🖨 {html.escape(t(lang, 'print_report'))}</button>
+        </div>
+
+        <div class="report">
+            <div class="header-grid">
+                <div>{logo_hospital_html}</div>
+                <div class="title-block">
+                    <h1>{html.escape(t(lang, 'app_title'))}</h1>
+                    <div class="subtitle">{html.escape(t(lang, 'report_title'))}</div>
+                    <div class="authors">{html.escape(authors_text)}</div>
+                    <div class="affiliations">{affiliations_html}</div>
+                </div>
+                <div style="text-align:right;">{logo_university_html}</div>
+            </div>
+
+            <div class="meta">
+                <div><strong>{html.escape(t(lang, 'report_model'))}:</strong> {html.escape(model_text)}</div>
+                <div><strong>{html.escape(t(lang, 'report_datetime'))}:</strong> {html.escape(now_text)}</div>
+            </div>
+
+            <h2>{html.escape(t(lang, 'report_inputs'))}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{html.escape(t(lang, 'report_parameter'))}</th>
+                        <th>{html.escape(t(lang, 'report_value'))}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {input_rows}
+                </tbody>
+            </table>
+
+            <h2>{html.escape(t(lang, 'report_results'))}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{html.escape(t(lang, 'report_parameter'))}</th>
+                        <th>{html.escape(t(lang, 'report_value'))}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {result_html}
+                </tbody>
+            </table>
+
+            <div class="footer">{html.escape(FOOTER_NOTES[lang])}</div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def render_printable_report(model_key: str, lang: str):
+    result = st.session_state.get(f"result_{model_key}")
+    values = st.session_state.get(f"inputs_{model_key}")
+    if not result or not values:
+        return
+
+    st.markdown(f"### {t(lang, 'printable_report')}")
+    st.caption(t(lang, "printable_report_caption"))
+
+    report_html = build_print_report_html(model_key, lang)
+    required_count = len(model_required_inputs(model_key))
+    component_height = min(max(760 + 30 * required_count, 900), 1450)
+    components.html(report_html, height=component_height, scrolling=True)
+
+
+def show_result_panel(model_key: str, lang: str):
+    result = st.session_state.get(f"result_{model_key}")
+    model = MODELS[model_key]
+
+    st.subheader(t(lang, "prediction"))
+
+    if not result:
+        st.info(t(lang, "enter_values_prompt"))
+        return
+
+    probability_pct = result["probability"] * 100.0
+    st.metric(t(lang, "predicted_probability"), f"{probability_pct:.1f}%")
+    st.progress(min(max(int(round(probability_pct)), 0), 100))
+
+    if result["ci"] is not None:
+        ci_low = result["ci"]["prob_low"] * 100.0
+        ci_high = result["ci"]["prob_high"] * 100.0
+        ci_connector = "to" if lang == "en" else "đến"
+        st.write(f"**{t(lang, 'ci_label')}:** {ci_low:.1f}% {ci_connector} {ci_high:.1f}%")
+        st.caption(t(lang, "ci_note"))
+    else:
+        st.caption(t(lang, "ci_not_available"))
+
+    st.write(f"**{t(lang, 'linear_predictor')}:** {result['lp']:.4f}")
+
+    if "lab_crp_model" in model["active_terms"]:
+        st.write(f"**{t(lang, 'crp_transformed')}:** log(1 + CRP) = {result['transformed_crp']:.4f}")
+
+    with st.expander(t(lang, "show_contributions")):
+        contrib = result["contributions"].copy()
+        contrib["x_value"] = contrib["x_value"].map(lambda x: f"{x:.4f}")
+        contrib["beta"] = contrib["beta"].map(lambda x: f"{x:.6f}")
+        contrib["contribution"] = contrib["contribution"].map(lambda x: f"{x:.6f}")
+        st.dataframe(
+            contrib[["display", "x_value", "beta", "contribution"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    render_printable_report(model_key, lang)
+
+
+def main():
+    with st.sidebar:
+        st.header(t("en", "model_selection") + " / " + t("vi", "model_selection"))
+        language_display = st.selectbox(
+            t("en", "language") + " / " + t("vi", "language"),
+            options=["English", "Tiếng Việt"],
+            index=0,
+            key="language_select",
+        )
+        lang = "en" if language_display == "English" else "vi"
+
+        model_keys = list(MODELS.keys())
+        st.selectbox(
+            t(lang, "choose_model"),
+            options=model_keys,
+            format_func=lambda key: model_short_name(key, lang),
+            key="selected_model",
+        )
+        model_key = st.session_state["selected_model"]
+
+        st.markdown("---")
+        st.warning(t(lang, "research_warning"))
+
+    render_header(lang)
+    st.divider()
+
+    input_col, summary_col = st.columns([1.15, 0.85], gap="large")
+
+    with input_col:
+        st.subheader(t(lang, "input_form"))
+        st.caption(t(lang, "input_form_caption"))
+
+        required_inputs = model_required_inputs(model_key)
+        section_to_inputs = defaultdict(list)
+        for name in required_inputs:
+            section_to_inputs[INPUT_DEFS[name]["section"]].append(name)
+
+        with st.form(key=f"form_{model_key}"):
+            collected_values = {}
+
+            for section in SECTION_ORDER:
+                section_inputs = section_to_inputs.get(section, [])
+                if not section_inputs:
+                    continue
+
+                st.markdown(f"### {section_label(section, lang)}")
+                cols = st.columns(2)
+                for idx, input_name in enumerate(section_inputs):
+                    with cols[idx % 2]:
+                        collected_values[input_name] = render_widget(input_name, lang)
+
+            submitted = st.form_submit_button(t(lang, "calculate_risk"), use_container_width=True)
+
+        if submitted:
+            warnings = validate_inputs(model_key, collected_values, lang)
+            if warnings:
+                for warning in warnings:
+                    st.error(warning)
+            else:
+                st.session_state[f"inputs_{model_key}"] = collected_values
+                st.session_state[f"result_{model_key}"] = predict(model_key, collected_values)
+                st.success(t(lang, "risk_calculated"))
+
+        show_result_panel(model_key, lang)
+
+    with summary_col:
+        show_model_summary(model_key, lang)
+
+    st.divider()
+    st.caption(FOOTER_NOTES[lang])
+
+
+if __name__ == "__main__":
+    main()

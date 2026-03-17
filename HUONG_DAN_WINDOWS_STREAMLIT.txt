@@ -1,0 +1,63 @@
+HUONG DAN CHAY WEBAPP TREN LOCALHOST (WINDOWS)
+===============================================
+
+1) Cai Python truoc
+- Cai Python 3.11 hoac 3.12.
+- Khi cai, nho tick: Add Python to PATH.
+- Cai xong, DONG cua so PowerShell/CMD cu, mo lai cua so moi.
+
+2) Giai nen file ZIP
+- Vi du giai nen vao:
+  C:\Users\Long\Downloads\appendicitis_streamlit_app
+
+3) Mo PowerShell trong dung thu muc app
+- Cach nhanh: vao thu muc app, giu Shift + chuot phai, chon Open PowerShell window here
+- Hoac mo PowerShell roi chay:
+  cd C:\Users\Long\Downloads\appendicitis_streamlit_app
+
+4) Kiem tra Python
+- Chay:
+  py --version
+- Neu hien Python 3.x.x la dat.
+- Neu bao loi, nghia la Python chua cai dung.
+
+5) Chay file tu dong
+- Chay:
+  .\run_app_windows.cmd
+
+6) Doi den khi thay dong:
+- Local URL: http://localhost:8501
+
+7) Mo trinh duyet
+- Neu trinh duyet khong tu mo, vao:
+  http://localhost:8501
+
+8) Rat quan trong
+- KHONG dong cua so PowerShell/CMD dang chay Streamlit.
+- Neu dong cua so nay, localhost se ngung ngay.
+
+9) Cach dung app
+- Chon ngôn ngữ English / Tiếng Việt
+- Chọn 1 trong 3 mô hình
+- Nhập các biến cần thiết
+- Bấm Calculate risk / Tính nguy cơ
+- Xem Prediction
+- Bấm Print / In để tạo bản in tổng hợp
+
+10) Dung app
+- Quay lai cua so PowerShell/CMD
+- Nhan Ctrl + C
+
+NEU BI LOI ERR_CONNECTION_REFUSED
+--------------------------------
+- Nghia la app chua chay hoac cua so terminal da bi dong.
+- Chay lai:
+  .\run_app_windows.cmd
+
+NEU MUON GO TAY TUNG LENH
+-------------------------
+cd C:\Users\Long\Downloads\appendicitis_streamlit_app
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
