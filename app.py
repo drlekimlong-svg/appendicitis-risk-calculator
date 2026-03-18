@@ -101,6 +101,10 @@ TEXT = {
         "member_member_can_save": "Signed-in members can save non-identifiable inputs and prediction results.",
         "member_not_authorized": "Your account is signed in but is not authorized for saving.",
         "member_db_not_configured": "Database storage is not configured, so saving is disabled.",
+        "member_db_diagnostic": "Database diagnostic",
+        "member_run_db_test": "Run database self-test",
+        "member_db_ok": "Database connection is working.",
+        "member_db_error_prefix": "Database error",
         "member_email_missing": "Signed in, but no email claim was returned by the identity provider.",
         "save_section_title": "Member data storage",
         "save_button": "Save current result",
@@ -186,6 +190,10 @@ TEXT = {
         "member_member_can_save": "Thành viên đã đăng nhập có thể lưu bộ biến đầu vào và kết quả dự đoán không định danh.",
         "member_not_authorized": "Tài khoản đã đăng nhập nhưng chưa được cấp quyền lưu dữ liệu.",
         "member_db_not_configured": "Chưa cấu hình nơi lưu dữ liệu nên chức năng lưu đang bị tắt.",
+        "member_db_diagnostic": "Chẩn đoán kết nối cơ sở dữ liệu",
+        "member_run_db_test": "Chạy kiểm tra kết nối cơ sở dữ liệu",
+        "member_db_ok": "Kết nối cơ sở dữ liệu đang hoạt động.",
+        "member_db_error_prefix": "Lỗi cơ sở dữ liệu",
         "member_email_missing": "Đã đăng nhập nhưng nhà cung cấp định danh không trả về email.",
         "save_section_title": "Lưu dữ liệu thành viên",
         "save_button": "Lưu kết quả hiện tại",
@@ -469,6 +477,41 @@ def allowed_member_emails() -> set[str]:
     return {str(item).strip().lower() for item in raw_values if str(item).strip()}
 
 
+def db_config_present() -> bool:
+    try:
+        connections = st.secrets.get("connections", {})
+        app_db = connections.get("app_db", {})
+    except Exception:
+        return False
+
+    if not isinstance(app_db, dict):
+        return False
+
+    if app_db.get("url"):
+        return True
+
+    required = ["dialect", "host", "username"]
+    return all(bool(app_db.get(k)) for k in required)
+
+
+def format_exception_message(exc: Exception) -> str:
+    return f"{exc.__class__.__name__}: {exc}"
+
+
+def db_diagnostic_state() -> dict:
+    return st.session_state.setdefault(
+        "db_diagnostic", {"ok": None, "message": "", "config_present": db_config_present()}
+    )
+
+
+def set_db_diagnostic(ok: bool | None, message: str = "") -> None:
+    st.session_state["db_diagnostic"] = {
+        "ok": ok,
+        "message": message,
+        "config_present": db_config_present(),
+    }
+
+
 def normalize_research_id(raw_value: str) -> str:
     return str(raw_value or "").strip()
 
@@ -498,18 +541,13 @@ def member_can_save() -> tuple[bool, str]:
 
 @st.cache_resource(show_spinner=False)
 def get_db_engine():
-    try:
-        conn = st.connection("app_db", type="sql")
-        return conn.engine
-    except Exception:
-        return None
+    conn = st.connection("app_db", type="sql")
+    return conn.engine
 
 
 @st.cache_resource(show_spinner=False)
 def initialize_storage() -> bool:
     engine = get_db_engine()
-    if engine is None:
-        return False
 
     create_stmt = sql_text(
         """
@@ -535,17 +573,20 @@ def initialize_storage() -> bool:
 
     alter_stmt = sql_text("ALTER TABLE saved_predictions ADD COLUMN IF NOT EXISTS research_id TEXT")
 
-    try:
-        with engine.begin() as conn:
-            conn.execute(create_stmt)
-            conn.execute(alter_stmt)
-        return True
-    except Exception:
-        return False
+    with engine.begin() as conn:
+        conn.execute(create_stmt)
+        conn.execute(alter_stmt)
+    return True
 
 
 def database_ready() -> bool:
-    return bool(initialize_storage())
+    try:
+        ok = bool(initialize_storage())
+        set_db_diagnostic(True, "")
+        return ok
+    except Exception as exc:
+        set_db_diagnostic(False, format_exception_message(exc))
+        return False
 
 
 def save_result_record(model_key: str, lang: str, research_id: str) -> tuple[bool, str]:
@@ -873,7 +914,7 @@ def render_auth_controls(lang: str):
     if not user_is_logged_in():
         st.info(t(lang, "member_guest_status"))
         st.caption(t(lang, "member_guest_message"))
-        if st.button(t(lang, "member_login"), key="member_login_button", use_container_width=True):
+        if st.button(t(lang, "member_login"), key="member_login_button", width="stretch"):
             st.login()
         return
 
@@ -883,7 +924,7 @@ def render_auth_controls(lang: str):
     email = current_user_email()
     if email and display_name != email:
         st.caption(email)
-    if st.button(t(lang, "member_logout"), key="member_logout_button", use_container_width=True):
+    if st.button(t(lang, "member_logout"), key="member_logout_button", width="stretch"):
         st.logout()
 
 
@@ -942,7 +983,7 @@ def render_header(lang: str):
         if st.button(
             t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese"),
             key="toggle_language_button",
-            use_container_width=True,
+            width="stretch",
         ):
             st.session_state["lang"] = "en" if lang == "vi" else "vi"
             st.rerun()
@@ -1016,10 +1057,29 @@ def show_model_summary(model_key: str, lang: str):
                 "or": t(lang, "coefficient_or"),
             }
         )
-        st.dataframe(coef_df, use_container_width=True, hide_index=True)
+        st.dataframe(coef_df, width="stretch", hide_index=True)
 
     with st.expander(t(lang, "show_formula"), expanded=False):
         st.code(model["formula"])
+
+
+def render_db_diagnostic_panel(lang: str):
+    state = db_diagnostic_state()
+    with st.expander(t(lang, "member_db_diagnostic"), expanded=(state.get("ok") is False)):
+        if st.button(t(lang, "member_run_db_test"), key="run_db_self_test", width="stretch"):
+            get_db_engine.clear()
+            initialize_storage.clear()
+            database_ready()
+            state = db_diagnostic_state()
+
+        state = db_diagnostic_state()
+        st.write(f"- **Secrets `[connections.app_db]` present:** {'Yes' if state.get('config_present') else 'No'}")
+        if state.get("ok") is True:
+            st.success(t(lang, "member_db_ok"))
+        elif state.get("ok") is False and state.get("message"):
+            st.error(f"{t(lang, 'member_db_error_prefix')}: {state['message']}")
+        else:
+            st.info(t(lang, "member_db_not_configured"))
 
 
 def render_member_save_section(model_key: str, lang: str):
@@ -1032,7 +1092,7 @@ def render_member_save_section(model_key: str, lang: str):
 
     if not user_is_logged_in():
         st.info(t(lang, "member_guest_message"))
-        if st.button(t(lang, "member_login"), key=f"member_login_from_save_{model_key}", use_container_width=True):
+        if st.button(t(lang, "member_login"), key=f"member_login_from_save_{model_key}", width="stretch"):
             st.login()
         return
 
@@ -1055,6 +1115,7 @@ def render_member_save_section(model_key: str, lang: str):
 
     if not database_ready():
         st.warning(t(lang, "member_db_not_configured"))
+        render_db_diagnostic_panel(lang)
         return
 
     st.success(t(lang, "member_member_can_save"))
@@ -1081,7 +1142,7 @@ def render_member_save_section(model_key: str, lang: str):
     if st.button(
         t(lang, "save_button"),
         key=f"save_button_{model_key}",
-        use_container_width=True,
+        width="stretch",
         disabled=(not research_id_is_valid(research_id_clean)) or (not has_result),
     ):
         ok, _ = save_result_record(model_key, lang, research_id_clean)
@@ -1366,7 +1427,7 @@ def show_result_panel(model_key: str, lang: str):
         contrib["contribution"] = contrib["contribution"].map(lambda x: f"{x:.6f}")
         st.dataframe(
             contrib[["display", "x_value", "beta", "contribution"]],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -1430,7 +1491,7 @@ def main():
                     with cols[idx % 2]:
                         collected_values[input_name] = render_widget(input_name, lang)
 
-            submitted = st.form_submit_button(t(lang, "calculate_risk"), use_container_width=True)
+            submitted = st.form_submit_button(t(lang, "calculate_risk"), width="stretch")
 
         if submitted:
             warnings = validate_inputs(model_key, collected_values, lang)
