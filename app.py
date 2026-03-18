@@ -118,6 +118,11 @@ TEXT = {
         "research_id_required": "Enter the 8-digit Research ID before saving.",
         "research_id_invalid": "Research ID must contain exactly 8 digits.",
         "save_requires_result": "Calculate a prediction first, then save.",
+        "field_required": "is required.",
+        "number_placeholder": "Enter a value",
+        "select_placeholder": "Choose one option",
+        "reset_form": "Reset all fields",
+        "reset_done": "All input fields for this model have been cleared.",
     },
     "vi": {
         "model_selection": "Lựa chọn mô hình",
@@ -208,6 +213,11 @@ TEXT = {
         "research_id_required": "Hãy nhập ID nghiên cứu 8 chữ số trước khi lưu.",
         "research_id_invalid": "ID nghiên cứu phải gồm đúng 8 chữ số.",
         "save_requires_result": "Hãy tính nguy cơ trước rồi mới lưu.",
+        "field_required": "là biến bắt buộc.",
+        "number_placeholder": "Nhập giá trị",
+        "select_placeholder": "Chọn một giá trị",
+        "reset_form": "Xóa tất cả ô nhập",
+        "reset_done": "Đã xóa toàn bộ ô nhập của mô hình này.",
     },
 }
 
@@ -457,9 +467,21 @@ def model_anchor_label(model_key: str, lang: str) -> str:
 
 
 def switch_model(model_key: str, lang: str) -> None:
-    st.session_state["selected_model"] = model_key
-    sync_query_params(lang, model_key)
-    st.rerun()
+    st.session_state["pending_model_switch"] = model_key
+    try:
+        st.query_params["model"] = str(model_key)
+        st.query_params["lang"] = str(lang)
+    except Exception:
+        pass
+
+
+def reset_model_form(model_key: str) -> None:
+    for input_name in model_required_inputs(model_key):
+        st.session_state.pop(f"widget_{input_name}", None)
+    st.session_state.pop(f"inputs_{model_key}", None)
+    st.session_state.pop(f"result_{model_key}", None)
+    st.session_state.pop(f"research_id_{model_key}", None)
+    st.session_state["form_reset_notice"] = model_key
 
 
 def on_model_change() -> None:
@@ -847,7 +869,10 @@ def validate_inputs(model_key: str, values: dict, lang: str) -> list[str]:
     required = model_required_inputs(model_key)
 
     for name in required:
-        value = values[name]
+        value = values.get(name)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            warnings.append(f"{input_label(name, lang)} {t(lang, 'field_required')}")
+            continue
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value < 0:
             warnings.append(f"{input_label(name, lang)} {t(lang, 'warning_negative')}")
 
@@ -910,39 +935,46 @@ def render_widget(input_name: str, lang: str):
     widget_key = f"widget_{input_name}"
     label = f"**{input_label(input_name, lang)}**"
     help_text = input_help(input_name, lang)
+    current_value = st.session_state.get(widget_key, None)
 
     if spec["type"] == "number":
+        numeric_value = None if current_value in (None, "") else float(current_value)
         return st.number_input(
             label,
             min_value=float(spec["min_value"]),
             max_value=float(spec["max_value"]),
-            value=float(spec["default"]),
+            value=numeric_value,
             step=float(spec["step"]),
             format=spec["format"],
             help=help_text,
+            placeholder=t(lang, "number_placeholder"),
             key=widget_key,
         )
 
     if spec["type"] == "bool":
+        options = [False, True]
+        index = None if current_value is None else options.index(bool(current_value))
         return st.selectbox(
             label,
-            options=[False, True],
-            index=1 if spec.get("default", False) else 0,
+            options=options,
+            index=index,
             format_func=lambda val: bool_label(val, lang),
             help=help_text,
+            placeholder=t(lang, "select_placeholder"),
             key=widget_key,
         )
 
     if spec["type"] == "select":
         option_values = [option["value"] for option in spec["options"]]
-        default_value = spec["default"]
-        default_index = option_values.index(default_value) if default_value in option_values else 0
+        selected_value = current_value if current_value in option_values else None
+        selected_index = option_values.index(selected_value) if selected_value in option_values else None
         return st.selectbox(
             label,
             options=option_values,
-            index=default_index,
+            index=selected_index,
             format_func=lambda val: option_label(input_name, val, lang),
             help=help_text,
+            placeholder=t(lang, "select_placeholder"),
             key=widget_key,
         )
 
@@ -957,7 +989,6 @@ def inject_custom_css():
         [data-testid="stSelectbox"] label p,
         [data-testid="stTextInput"] label p {
             font-weight: 700 !important;
-            font-size: 1.02rem !important;
             line-height: 1.35 !important;
         }
 
@@ -995,6 +1026,18 @@ def inject_custom_css():
         .stForm [data-testid="stFormSubmitButton"] button:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+        }
+
+        @media (max-width: 900px) {
+            .stForm div[data-testid="stHorizontalBlock"] {
+                flex-direction: column !important;
+                gap: 0.35rem !important;
+            }
+
+            .stForm div[data-testid="column"] {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+            }
         }
         </style>
         """,
@@ -1108,13 +1151,14 @@ def render_guidance(lang: str):
         cols = st.columns(3)
         for col, (target_model, button_key) in zip(cols, switch_specs):
             with col:
-                if st.button(
+                st.button(
                     model_anchor_label(target_model, lang),
                     key=button_key,
                     width="stretch",
                     disabled=(current_model == target_model),
-                ):
-                    switch_model(target_model, lang)
+                    on_click=switch_model,
+                    args=(target_model, lang),
+                )
 
 
 def render_quick_definitions(model_key: str, lang: str):
@@ -1141,7 +1185,7 @@ def show_model_summary(model_key: str, lang: str):
     st.markdown(f"**{model_display_name(model_key, lang)}**")
     st.caption(model_title(model_key, lang))
 
-    with st.expander(t(lang, "workbook_notes"), expanded=True):
+    with st.expander(t(lang, "workbook_notes"), expanded=False):
         for label, value in model["notes"].items():
             st.write(f"- **{note_label(label, lang)}:** {value}")
 
@@ -1150,7 +1194,7 @@ def show_model_summary(model_key: str, lang: str):
     for name in required_fields:
         section_to_inputs[INPUT_DEFS[name]["section"]].append(name)
 
-    with st.expander(t(lang, "required_inputs"), expanded=True):
+    with st.expander(t(lang, "required_inputs"), expanded=False):
         for section in SECTION_ORDER:
             names = section_to_inputs.get(section, [])
             if not names:
@@ -1493,13 +1537,12 @@ def render_printable_report(model_key: str, lang: str):
     if not result or not values:
         return
 
-    st.markdown(f"### {t(lang, 'printable_report')}")
-    st.caption(t(lang, "printable_report_caption"))
-
-    report_html = build_print_report_html(model_key, lang)
-    required_count = len(model_required_inputs(model_key))
-    component_height = min(max(760 + 30 * required_count, 920), 1500)
-    components.html(report_html, height=component_height, scrolling=True)
+    with st.expander(t(lang, 'printable_report'), expanded=False):
+        st.caption(t(lang, "printable_report_caption"))
+        report_html = build_print_report_html(model_key, lang)
+        required_count = len(model_required_inputs(model_key))
+        component_height = min(max(760 + 30 * required_count, 920), 1500)
+        components.html(report_html, height=component_height, scrolling=True)
 
 
 def show_result_panel(model_key: str, lang: str):
@@ -1555,6 +1598,10 @@ def initialize_state():
     if "selected_model" not in st.session_state and model_keys:
         st.session_state["selected_model"] = model_keys[0]
 
+    pending_model_switch = st.session_state.pop("pending_model_switch", None)
+    if pending_model_switch in model_keys:
+        st.session_state["selected_model"] = pending_model_switch
+
     lang_param = _query_param_scalar("lang")
     if lang_param in {"vi", "en"}:
         st.session_state["lang"] = lang_param
@@ -1598,6 +1645,19 @@ def main():
             st.subheader(t(lang, "input_form"))
             st.caption(t(lang, "input_form_caption"))
 
+            if st.session_state.pop("form_reset_notice", None) == model_key:
+                st.success(t(lang, "reset_done"))
+
+            toolbar_cols = st.columns([0.7, 0.3])
+            with toolbar_cols[1]:
+                st.button(
+                    t(lang, "reset_form"),
+                    key=f"reset_form_button_{model_key}",
+                    width="stretch",
+                    on_click=reset_model_form,
+                    args=(model_key,),
+                )
+
             required_inputs = model_required_inputs(model_key)
             section_to_inputs = defaultdict(list)
             for name in required_inputs:
@@ -1611,19 +1671,20 @@ def main():
                     if not section_inputs:
                         continue
 
-                    st.markdown(f"<div class='input-section-heading'>{html.escape(section_label(section, lang))}</div>", unsafe_allow_html=True)
-                    cols = st.columns(2)
-                    for idx, input_name in enumerate(section_inputs):
-                        with cols[idx % 2]:
-                            collected_values[input_name] = render_widget(input_name, lang)
+                    with st.container(border=True):
+                        st.markdown(f"<div class='input-section-heading'>{html.escape(section_label(section, lang))}</div>", unsafe_allow_html=True)
+                        cols = st.columns(2)
+                        for idx, input_name in enumerate(section_inputs):
+                            with cols[idx % 2]:
+                                collected_values[input_name] = render_widget(input_name, lang)
 
-                submitted = st.form_submit_button(t(lang, "calculate_risk"), type="primary", width="stretch")
+                submitted = st.form_submit_button(f"🩺 {t(lang, 'calculate_risk')}", type="primary", width="stretch")
 
             if submitted:
                 warnings = validate_inputs(model_key, collected_values, lang)
                 if warnings:
-                    for warning in warnings:
-                        st.error(warning)
+                    warning_text = "\n".join(f"- {warning}" for warning in warnings)
+                    st.warning(warning_text)
                 else:
                     st.session_state[f"inputs_{model_key}"] = collected_values
                     st.session_state[f"result_{model_key}"] = predict(model_key, collected_values)
