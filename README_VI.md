@@ -7,6 +7,8 @@ Gói này đã được cập nhật theo yêu cầu mới:
 - có **nút Print / In** để in bản tổng hợp thông số và kết quả dự đoán
 - cập nhật tác giả song ngữ theo danh sách mới của nhóm nghiên cứu
 - chèn logo **Bệnh viện Nhân dân Gia Định** và **Trường Đại học Y khoa Phạm Ngọc Thạch** ở phần đầu trang
+- hai logo đầu trang nằm cùng về **bên trái** và có kích thước cân đối hơn
+- bổ sung **đăng nhập thành viên** và **lưu dữ liệu** cho người dùng đã đăng nhập
 
 ---
 
@@ -167,3 +169,16 @@ Chọn **Python 3.12** trong **Advanced settings** khi deploy.
 
 ### Sau khi deploy
 Mỗi lần anh sửa code rồi cập nhật lại GitHub, Streamlit Community Cloud sẽ build lại app từ repository đó.
+
+
+---
+
+## PHẦN 9 — Đăng nhập thành viên và lưu dữ liệu
+
+- File hướng dẫn chi tiết: `MEMBER_LOGIN_SAVE_SETUP_VI.md`
+- File mẫu secret: `SECRETS_EXAMPLE.toml`
+
+Lưu ý quan trọng:
+- **Guest**: tính nguy cơ và in kết quả như cũ, nhưng **không lưu** dữ liệu.
+- **Member**: đăng nhập xong mới có thể lưu.
+- Nếu app public cần lưu dữ liệu lâu dài, nên dùng **remote PostgreSQL**, không nên dựa vào SQLite local.

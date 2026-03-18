@@ -1,39 +1,33 @@
-# Cập nhật app public đang chạy trên Streamlit Community Cloud
+# Cập nhật app public đang chạy
 
-Anh không cần tạo app mới từ đầu.
-Chỉ cần cập nhật lại repository GitHub đang dùng để deploy.
+Để cập nhật bản public trên Streamlit Community Cloud, anh chỉ cần thay bộ file trong GitHub repo đang deploy rồi commit/push lại.
 
-## Cách nhanh nhất
-1. Mở repository GitHub đang chứa app public hiện tại.
-2. Thay toàn bộ file cũ bằng bộ file mới trong gói này.
-3. Kiểm tra lại bắt buộc phải có đủ:
-   - `app.py`
-   - `models_config.py`
-   - `requirements.txt`
-   - `.streamlit/config.toml`
-   - `assets/logo_gia_dinh.png`
-   - `assets/logo_pnt.png`
-4. Commit changes lên branch đang dùng để deploy, thường là `main`.
-5. Quay lại Streamlit Community Cloud.
-6. App sẽ tự rebuild lại. Nếu chưa thấy, bấm **Reboot app** hoặc **Redeploy**.
+## Những file/thư mục cần có trong repo
 
-## Nếu anh upload bằng giao diện web GitHub
-1. Mở repo.
-2. Bấm **Add file** → **Upload files**.
-3. Kéo thả toàn bộ file mới vào đúng cấu trúc thư mục.
-4. Bấm **Commit changes**.
-
-## Sau khi cập nhật xong
-Khi mở link public, bản mới sẽ có:
-- logo bệnh viện và trường ở đầu trang
-- giao diện gợi ý cách dùng đọc được cả ở Light và Dark mode
-- bỏ chữ `workbook` ở các expander hiển thị
-- phiên bản mới `1.0.2`
-- định nghĩa ngắn cho các biến số dưới dạng tooltip `?` trong form
-- nút **Định nghĩa ngắn các biến** trong ô tóm tắt để xem nhanh mà không làm kéo dài trang
-
-## Nếu logo vẫn không hiện
-Nguyên nhân gần như luôn là thiếu thư mục `assets/` hoặc upload sai vị trí file logo.
-Hãy kiểm tra lại:
+- `app.py`
+- `models_config.py`
+- `requirements.txt`
+- `.streamlit/config.toml`
 - `assets/logo_gia_dinh.png`
 - `assets/logo_pnt.png`
+- `SECRETS_EXAMPLE.toml`
+- `MEMBER_LOGIN_SAVE_SETUP_VI.md`
+
+## Nếu muốn bật login + save trên app public
+
+Ngoài việc update code, anh còn phải vào **Edit Secrets** của app trên Streamlit Community Cloud và khai báo:
+
+- `[auth]` để bật OIDC login
+- `[members]` nếu muốn giới hạn email nào được lưu
+- `[connections.app_db]` để cấu hình nơi lưu dữ liệu
+
+## Lưu ý rất quan trọng
+
+SQLite local chỉ phù hợp để test local hoặc demo ngắn. Nếu bản public cần giữ dữ liệu ổn định thì dùng **remote PostgreSQL**.
+
+## Thao tác ngắn gọn
+
+1. Giải nén bộ code mới.
+2. Ghi đè file cũ trong repo GitHub.
+3. Commit và push lên branch đang deploy.
+4. Vào Streamlit Community Cloud, nếu app chưa tự build lại thì bấm **Reboot app** hoặc **Redeploy**.

@@ -1,6 +1,8 @@
 import base64
 import html
+import json
 import math
+import uuid
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +11,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from sqlalchemy import text as sql_text
 
 from models_config import APP_METADATA, INPUT_DEFS, MODELS, SECTION_ORDER, TERM_RULES
 
@@ -87,6 +90,22 @@ TEXT = {
         "guide_point_2": "When fuller clinical and CT information is available and you want a more detailed assessment, switch to Model 1 or Model 3.",
         "report_version": "Version",
         "report_contact": "Contact",
+        "member_guest_status": "Guest mode",
+        "member_logged_in_status": "Member signed in",
+        "member_login": "Member login",
+        "member_logout": "Log out",
+        "member_login_not_configured": "Member login is not configured yet. The app is running in guest mode.",
+        "member_guest_message": "Guest users can calculate and print results, but cannot save data.",
+        "member_logged_in_as": "Signed in as",
+        "member_member_can_save": "Signed-in members can save non-identifiable inputs and prediction results.",
+        "member_not_authorized": "Your account is signed in but is not authorized for saving.",
+        "member_db_not_configured": "Database storage is not configured, so saving is disabled.",
+        "member_email_missing": "Signed in, but no email claim was returned by the identity provider.",
+        "save_section_title": "Member data storage",
+        "save_button": "Save current result",
+        "save_success": "Result saved successfully.",
+        "save_failure": "Could not save the result. Please check the database configuration.",
+        "save_privacy_note": "Do not enter direct patient identifiers in this web app if you plan to save records.",
     },
     "vi": {
         "model_selection": "Lựa chọn mô hình",
@@ -150,6 +169,22 @@ TEXT = {
         "guide_point_2": "Khi có đầy đủ dữ liệu lâm sàng và CT và muốn đánh giá chi tiết hơn, chuyển sang Mô hình 1 hoặc Mô hình 3.",
         "report_version": "Phiên bản",
         "report_contact": "Liên hệ",
+        "member_guest_status": "Chế độ khách",
+        "member_logged_in_status": "Đã đăng nhập thành viên",
+        "member_login": "Đăng nhập thành viên",
+        "member_logout": "Đăng xuất",
+        "member_login_not_configured": "Chưa cấu hình đăng nhập thành viên. Ứng dụng đang chạy ở chế độ khách.",
+        "member_guest_message": "Khách vẫn có thể tính và in kết quả, nhưng không thể lưu dữ liệu.",
+        "member_logged_in_as": "Đăng nhập với",
+        "member_member_can_save": "Thành viên đã đăng nhập có thể lưu bộ biến đầu vào và kết quả dự đoán không định danh.",
+        "member_not_authorized": "Tài khoản đã đăng nhập nhưng chưa được cấp quyền lưu dữ liệu.",
+        "member_db_not_configured": "Chưa cấu hình nơi lưu dữ liệu nên chức năng lưu đang bị tắt.",
+        "member_email_missing": "Đã đăng nhập nhưng nhà cung cấp định danh không trả về email.",
+        "save_section_title": "Lưu dữ liệu thành viên",
+        "save_button": "Lưu kết quả hiện tại",
+        "save_success": "Đã lưu kết quả thành công.",
+        "save_failure": "Không thể lưu kết quả. Vui lòng kiểm tra cấu hình cơ sở dữ liệu.",
+        "save_privacy_note": "Không nhập thông tin định danh trực tiếp của người bệnh nếu anh dự định lưu bản ghi.",
     },
 }
 
@@ -364,6 +399,195 @@ FOOTER_NOTES = {
 
 CONTACT_EMAIL = APP_METADATA.get("contact_email", "Longlk@pnt.edu.vn")
 APP_VERSION = str(APP_METADATA.get("version", "1.0.1"))
+
+
+def user_info_dict() -> dict:
+    try:
+        return st.user.to_dict()
+    except Exception:
+        try:
+            return dict(st.user)
+        except Exception:
+            return {}
+
+
+def auth_configured() -> bool:
+    try:
+        auth_section = st.secrets.get("auth", {})
+    except Exception:
+        return False
+
+    required_keys = ["redirect_uri", "cookie_secret", "client_id", "client_secret", "server_metadata_url"]
+    return all(bool(auth_section.get(key)) for key in required_keys)
+
+
+def user_is_logged_in() -> bool:
+    try:
+        return bool(getattr(st.user, "is_logged_in", False))
+    except Exception:
+        return False
+
+
+def current_user_email() -> str:
+    info = user_info_dict()
+    for key in ("email", "preferred_username", "upn", "login_hint"):
+        value = info.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def current_user_name() -> str:
+    info = user_info_dict()
+    for key in ("name", "given_name", "preferred_username"):
+        value = info.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def allowed_member_emails() -> set[str]:
+    try:
+        members_section = st.secrets.get("members", {})
+    except Exception:
+        return set()
+
+    raw_values = members_section.get("allowed_emails", [])
+    return {str(item).strip().lower() for item in raw_values if str(item).strip()}
+
+
+def member_can_save() -> tuple[bool, str]:
+    if not auth_configured():
+        return False, "auth_not_configured"
+
+    if not user_is_logged_in():
+        return False, "guest"
+
+    allowed = allowed_member_emails()
+    email = current_user_email().strip().lower()
+
+    if allowed:
+        if not email:
+            return False, "email_missing"
+        if email not in allowed:
+            return False, "not_authorized"
+
+    return True, "ok"
+
+
+@st.cache_resource(show_spinner=False)
+def get_db_engine():
+    try:
+        conn = st.connection("app_db", type="sql")
+        return conn.engine
+    except Exception:
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def initialize_storage() -> bool:
+    engine = get_db_engine()
+    if engine is None:
+        return False
+
+    create_stmt = sql_text(
+        """
+        CREATE TABLE IF NOT EXISTS saved_predictions (
+            id TEXT PRIMARY KEY,
+            created_at_utc TEXT NOT NULL,
+            user_email TEXT,
+            user_name TEXT,
+            model_key TEXT NOT NULL,
+            model_display_name TEXT NOT NULL,
+            ui_language TEXT NOT NULL,
+            app_version TEXT NOT NULL,
+            probability REAL NOT NULL,
+            ci_low REAL,
+            ci_high REAL,
+            linear_predictor REAL NOT NULL,
+            input_json TEXT NOT NULL,
+            result_json TEXT NOT NULL
+        )
+        """
+    )
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(create_stmt)
+        return True
+    except Exception:
+        return False
+
+
+def database_ready() -> bool:
+    return bool(initialize_storage())
+
+
+def save_result_record(model_key: str, lang: str) -> tuple[bool, str]:
+    engine = get_db_engine()
+    if engine is None or not initialize_storage():
+        return False, "db_not_configured"
+
+    result = st.session_state.get(f"result_{model_key}")
+    values = st.session_state.get(f"inputs_{model_key}")
+    if not result or not values:
+        return False, "no_result"
+
+    record_id = str(uuid.uuid4())
+    created_at_utc = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    probability = float(result["probability"])
+    ci_low = float(result["ci"]["prob_low"]) if result.get("ci") is not None else None
+    ci_high = float(result["ci"]["prob_high"]) if result.get("ci") is not None else None
+    lp = float(result["lp"])
+    transformed_crp = result.get("transformed_crp")
+
+    payload_inputs = {name: values[name] for name in model_required_inputs(model_key)}
+    payload_results = {
+        "probability": probability,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "linear_predictor": lp,
+        "transformed_crp": float(transformed_crp) if transformed_crp is not None else None,
+    }
+
+    insert_stmt = sql_text(
+        """
+        INSERT INTO saved_predictions (
+            id, created_at_utc, user_email, user_name, model_key, model_display_name,
+            ui_language, app_version, probability, ci_low, ci_high, linear_predictor,
+            input_json, result_json
+        )
+        VALUES (
+            :id, :created_at_utc, :user_email, :user_name, :model_key, :model_display_name,
+            :ui_language, :app_version, :probability, :ci_low, :ci_high, :linear_predictor,
+            :input_json, :result_json
+        )
+        """
+    )
+
+    params = {
+        "id": record_id,
+        "created_at_utc": created_at_utc,
+        "user_email": current_user_email(),
+        "user_name": current_user_name(),
+        "model_key": model_key,
+        "model_display_name": model_display_name(model_key, lang),
+        "ui_language": lang,
+        "app_version": APP_VERSION,
+        "probability": probability,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "linear_predictor": lp,
+        "input_json": json.dumps(payload_inputs, ensure_ascii=False),
+        "result_json": json.dumps(payload_results, ensure_ascii=False),
+    }
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(insert_stmt, params)
+        return True, record_id
+    except Exception:
+        return False, "save_error"
 
 
 def resolve_asset_path(filename: str) -> Path:
@@ -614,23 +838,56 @@ def render_widget(input_name: str, lang: str):
     raise ValueError(f"Unsupported widget type: {spec['type']}")
 
 
+def render_auth_controls(lang: str):
+    if not auth_configured():
+        st.info(t(lang, "member_guest_status"))
+        st.caption(t(lang, "member_login_not_configured"))
+        return
+
+    if not user_is_logged_in():
+        st.info(t(lang, "member_guest_status"))
+        st.caption(t(lang, "member_guest_message"))
+        if st.button(t(lang, "member_login"), key="member_login_button", use_container_width=True):
+            st.login()
+        return
+
+    display_name = current_user_name() or current_user_email() or t(lang, "member_logged_in_status")
+    st.success(t(lang, "member_logged_in_status"))
+    st.caption(f"{t(lang, 'member_logged_in_as')}: {display_name}")
+    email = current_user_email()
+    if email and display_name != email:
+        st.caption(email)
+    if st.button(t(lang, "member_logout"), key="member_logout_button", use_container_width=True):
+        st.logout()
+
+
 def render_header(lang: str):
-    left, center, right = st.columns([0.14, 0.66, 0.20], gap="small")
+    left, center, right = st.columns([0.24, 0.56, 0.20], gap="small")
 
     hospital_logo_html = (
-        f"<div style='display:flex; align-items:center; justify-content:center; min-height:96px;'><img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo' style='max-width:88px; max-height:88px; width:auto; height:auto; object-fit:contain;'></div>"
+        f"<img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo' style='max-width:84px; max-height:84px; width:auto; height:auto; object-fit:contain;'>"
         if LOGO_HOSPITAL_BASE64
         else ""
     )
     university_logo_html = (
-        f"<div style='display:flex; align-items:center; justify-content:center; min-height:96px;'><img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo' style='max-width:88px; max-height:88px; width:auto; height:auto; object-fit:contain;'></div>"
+        f"<img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo' style='max-width:84px; max-height:84px; width:auto; height:auto; object-fit:contain;'>"
         if LOGO_UNIVERSITY_BASE64
         else ""
     )
 
     with left:
+        logos = []
         if hospital_logo_html:
-            st.markdown(hospital_logo_html, unsafe_allow_html=True)
+            logos.append(hospital_logo_html)
+        if university_logo_html:
+            logos.append(university_logo_html)
+        if logos:
+            st.markdown(
+                f"<div style='display:flex; align-items:center; justify-content:flex-start; gap:14px; min-height:96px; padding-top:6px;'>"
+                + "".join(logos)
+                + "</div>",
+                unsafe_allow_html=True,
+            )
 
     with center:
         authors_text = ", ".join(AUTHORS_BY_LANG[lang])
@@ -656,15 +913,15 @@ def render_header(lang: str):
         )
 
     with right:
-        pad, button_col = st.columns([0.20, 0.80])
-        with button_col:
-            next_lang = "en" if lang == "vi" else "vi"
-            button_label = t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese")
-            if st.button(button_label, key="toggle_language_button", use_container_width=True):
-                st.session_state["lang"] = next_lang
-                st.rerun()
-        if university_logo_html:
-            st.markdown(university_logo_html, unsafe_allow_html=True)
+        if st.button(
+            t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese"),
+            key="toggle_language_button",
+            use_container_width=True,
+        ):
+            st.session_state["lang"] = "en" if lang == "vi" else "vi"
+            st.rerun()
+        render_auth_controls(lang)
+
 
 def render_guidance(lang: str):
     st.markdown(
@@ -737,6 +994,50 @@ def show_model_summary(model_key: str, lang: str):
 
     with st.expander(t(lang, "show_formula"), expanded=False):
         st.code(model["formula"])
+
+
+def render_member_save_section(model_key: str, lang: str):
+    st.markdown(f"### {t(lang, 'save_section_title')}")
+    st.caption(t(lang, "save_privacy_note"))
+
+    if not auth_configured():
+        st.info(t(lang, "member_login_not_configured"))
+        return
+
+    if not user_is_logged_in():
+        st.info(t(lang, "member_guest_message"))
+        if st.button(t(lang, "member_login"), key=f"member_login_from_save_{model_key}", use_container_width=True):
+            st.login()
+        return
+
+    email = current_user_email()
+    name = current_user_name()
+    signed_in_as = name or email or t(lang, "member_logged_in_status")
+    st.caption(f"{t(lang, 'member_logged_in_as')}: {signed_in_as}")
+    if email and signed_in_as != email:
+        st.caption(email)
+
+    can_save, status = member_can_save()
+    if not can_save:
+        if status == "not_authorized":
+            st.warning(t(lang, "member_not_authorized"))
+        elif status == "email_missing":
+            st.warning(t(lang, "member_email_missing"))
+        else:
+            st.info(t(lang, "member_guest_message"))
+        return
+
+    if not database_ready():
+        st.warning(t(lang, "member_db_not_configured"))
+        return
+
+    st.success(t(lang, "member_member_can_save"))
+    if st.button(t(lang, "save_button"), key=f"save_button_{model_key}", use_container_width=True):
+        ok, _ = save_result_record(model_key, lang)
+        if ok:
+            st.success(t(lang, "save_success"))
+        else:
+            st.error(t(lang, "save_failure"))
 
 def build_print_report_html(model_key: str, lang: str) -> str:
     result = st.session_state.get(f"result_{model_key}")
@@ -1004,6 +1305,8 @@ def show_result_panel(model_key: str, lang: str):
 
     if "lab_crp_model" in model["active_terms"]:
         st.write(f"**{t(lang, 'crp_transformed')}:** log(1 + CRP) = {result['transformed_crp']:.4f}")
+
+    render_member_save_section(model_key, lang)
 
     with st.expander(t(lang, "show_contributions")):
         contrib = result["contributions"].copy()
