@@ -44,11 +44,13 @@ TEXT = {
         "linear_predictor": "Linear predictor (LP)",
         "crp_transformed": "CRP transformed for the model",
         "show_contributions": "Show term-by-term contributions",
-        "show_coefficients": "Show coefficient table from the workbook",
-        "show_formula": "Show formula exactly as stored in the workbook",
+        "show_coefficients": "Show coefficient table",
+        "show_formula": "Show formula",
         "model_summary": "Model summary",
-        "workbook_notes": "Workbook notes",
+        "workbook_notes": "Model notes",
         "required_inputs": "Inputs required by this model",
+        "quick_definitions": "Quick variable definitions",
+        "quick_definitions_caption": "Hover over the ? icon next to each input to see the short definition. Use the compact reference below when needed.",
         "yes": "Yes",
         "no": "No",
         "print_report": "Print",
@@ -105,11 +107,13 @@ TEXT = {
         "linear_predictor": "Bộ dự báo tuyến tính (LP)",
         "crp_transformed": "CRP đã biến đổi cho mô hình",
         "show_contributions": "Xem đóng góp của từng hạng tử",
-        "show_coefficients": "Xem bảng hệ số từ workbook",
-        "show_formula": "Xem công thức đúng như trong workbook",
+        "show_coefficients": "Xem bảng hệ số",
+        "show_formula": "Xem công thức",
         "model_summary": "Tóm tắt mô hình",
-        "workbook_notes": "Ghi chú từ workbook",
+        "workbook_notes": "Ghi chú mô hình",
         "required_inputs": "Các biến cần nhập cho mô hình này",
+        "quick_definitions": "Định nghĩa ngắn các biến",
+        "quick_definitions_caption": "Di chuột vào biểu tượng ? cạnh từng ô nhập để xem định nghĩa ngắn. Dùng bảng tham chiếu gọn bên dưới khi cần.",
         "yes": "Có",
         "no": "Không",
         "print_report": "In",
@@ -180,10 +184,73 @@ INPUT_LABELS = {
 
 
 INPUT_HELP = {
-    "demo_age_years": {"en": "Adult patients only.", "vi": "Chỉ áp dụng cho người lớn."},
+    "clin_anorexia": {
+        "en": "Self-reported loss of appetite at presentation.",
+        "vi": "Người bệnh tự khai chán ăn tại thời điểm thăm khám ban đầu.",
+    },
+    "clin_guarding_rebound_status": {
+        "en": "Choose: None; Guarding = involuntary abdominal wall tension on palpation; Rebound positive = pain increases with sudden release of pressure.",
+        "vi": "Chọn: Không; Đề kháng = co cứng thành bụng không chủ ý khi sờ nắn; Phản ứng dội dương tính = đau tăng khi nhả tay đột ngột.",
+    },
+    "clin_heart_rate": {
+        "en": "Initial heart rate at presentation, in beats per minute.",
+        "vi": "Nhịp tim ban đầu khi nhập viện, tính bằng lần/phút.",
+    },
+    "clin_nausea": {
+        "en": "Self-reported nausea at presentation.",
+        "vi": "Người bệnh tự khai buồn nôn tại thời điểm thăm khám ban đầu.",
+    },
+    "clin_pain_duration_hours": {
+        "en": "Time from onset of abdominal pain to hospital admission, in hours.",
+        "vi": "Thời gian từ khi khởi phát đau bụng đến khi nhập viện, tính bằng giờ.",
+    },
+    "ct_appendix_max_diameter_mm": {
+        "en": "Maximum outer-to-outer appendiceal diameter. Prefer an intact segment, measured perpendicular to the appendix axis; MPR is preferred when available.",
+        "vi": "Đường kính ngoài-ngoài lớn nhất của ruột thừa. Ưu tiên đo trên đoạn còn nguyên vẹn, vuông góc với trục ruột thừa; ưu tiên MPR khi có thể.",
+    },
+    "ct_appendix_wall_thickening": {
+        "en": "Appendiceal wall thickening, typically wall thickness ≥ 3 mm on a clearly visualized segment.",
+        "vi": "Dày thành ruột thừa, thường gợi ý khi bề dày thành ≥ 3 mm trên đoạn nhìn rõ.",
+    },
+    "ct_fat_stranding_grade": {
+        "en": "Grade periappendiceal fat stranding as None, Mild, Moderate, or Severe. Severe means extension beyond the mesoappendix or stranding disproportionate to wall thickening.",
+        "vi": "Chấm mức độ thâm nhiễm mỡ quanh ruột thừa là Không, Ít, Trung bình hoặc Nhiều. Mức Nhiều là lan ra ngoài mạc treo ruột thừa hoặc thâm nhiễm không tương xứng với dày thành.",
+    },
+    "ct_fecalith_present": {
+        "en": "Appendicolith/fecalith: a well-defined round or oval calcified or high-attenuation focus within the appendix; it may be extraluminal if perforation has occurred.",
+        "vi": "Sỏi phân ruột thừa: cấu trúc tròn hoặc bầu dục, giới hạn rõ, tăng đậm độ hoặc vôi hóa nằm trong lòng ruột thừa; có thể nằm ngoài lòng nếu đã vỡ.",
+    },
+    "ct_ileus_or_sbo": {
+        "en": "Ileus = bowel dilatation without a clear transition point. SBO = small-bowel dilatation, usually > 2.5 cm, with a transition point.",
+        "vi": "Liệt ruột = giãn ruột nhưng không có điểm chuyển tiếp rõ. Tắc ruột non = giãn ruột non, thường > 2,5 cm, kèm điểm chuyển tiếp.",
+    },
+    "ct_luminal_fluid": {
+        "en": "Fluid attenuation within the appendiceal lumen rather than gas or a fecalith.",
+        "vi": "Dịch nằm trong lòng ruột thừa, không phải khí hay sỏi phân.",
+    },
+    "ct_periappendiceal_free_fluid": {
+        "en": "Unencapsulated low-attenuation free fluid around the appendix or in the right iliac fossa; distinguish from fat stranding.",
+        "vi": "Dịch tự do ngoài lòng, không có vỏ bao, quanh ruột thừa hoặc vùng hố chậu phải; cần phân biệt với thâm nhiễm mỡ.",
+    },
+    "ct_wall_non_enhancement": {
+        "en": "Focal mural non-enhancement or wall discontinuity on contrast-enhanced CT, suggesting ischemia, necrosis, or perforation.",
+        "vi": "Khuyết thuốc hoặc mất liên tục thành trên CT có tiêm cản quang, gợi ý thiếu máu, hoại tử hoặc thủng.",
+    },
+    "demo_age_years": {
+        "en": "Age in completed years. Adult patients only.",
+        "vi": "Tuổi tính theo năm tròn. Chỉ áp dụng cho người lớn.",
+    },
     "lab_crp": {
-        "en": "Internally transformed as log(1 + CRP) when required by the model.",
-        "vi": "Sẽ được biến đổi nội bộ thành log(1 + CRP) khi mô hình yêu cầu.",
+        "en": "Initial serum CRP in mg/L. Internally transformed as log(1 + CRP) when required by the model.",
+        "vi": "CRP huyết thanh ban đầu, đơn vị mg/L. Sẽ được biến đổi nội bộ thành log(1 + CRP) khi mô hình yêu cầu.",
+    },
+    "lab_lymphocyte_abs": {
+        "en": "Absolute lymphocyte count from the initial complete blood count, in ×10⁹/L.",
+        "vi": "Số lượng lympho tuyệt đối từ công thức máu ban đầu, đơn vị ×10⁹/L.",
+    },
+    "lab_wbc": {
+        "en": "White blood cell count from the initial complete blood count, in ×10⁹/L.",
+        "vi": "Số lượng bạch cầu từ công thức máu ban đầu, đơn vị ×10⁹/L.",
     },
 }
 
@@ -550,9 +617,20 @@ def render_widget(input_name: str, lang: str):
 def render_header(lang: str):
     left, center, right = st.columns([0.14, 0.66, 0.20], gap="small")
 
+    hospital_logo_html = (
+        f"<div style='display:flex; align-items:center; justify-content:center; min-height:96px;'><img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo' style='max-width:88px; max-height:88px; width:auto; height:auto; object-fit:contain;'></div>"
+        if LOGO_HOSPITAL_BASE64
+        else ""
+    )
+    university_logo_html = (
+        f"<div style='display:flex; align-items:center; justify-content:center; min-height:96px;'><img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo' style='max-width:88px; max-height:88px; width:auto; height:auto; object-fit:contain;'></div>"
+        if LOGO_UNIVERSITY_BASE64
+        else ""
+    )
+
     with left:
-        if LOGO_HOSPITAL_PATH.exists():
-            st.image(str(LOGO_HOSPITAL_PATH), width=92)
+        if hospital_logo_html:
+            st.markdown(hospital_logo_html, unsafe_allow_html=True)
 
     with center:
         authors_text = ", ".join(AUTHORS_BY_LANG[lang])
@@ -565,10 +643,10 @@ def render_header(lang: str):
                 <div style="font-weight:600; margin-bottom:0.25rem; line-height:1.5;">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
                 <div style="line-height:1.5;">{affiliation_lines}</div>
                 <div style="margin-top:0.55rem; display:flex; justify-content:center; flex-wrap:wrap; gap:8px;">
-                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:#eef4fb; border:1px solid #d7dee8; border-radius:999px; font-size:0.92rem;">
+                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:rgba(148, 163, 184, 0.12); border:1px solid rgba(148, 163, 184, 0.32); border-radius:999px; font-size:0.92rem; color:inherit;">
                         {html.escape(version_text(lang))}
                     </span>
-                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:#eef4fb; border:1px solid #d7dee8; border-radius:999px; font-size:0.92rem;">
+                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:rgba(148, 163, 184, 0.12); border:1px solid rgba(148, 163, 184, 0.32); border-radius:999px; font-size:0.92rem; color:inherit;">
                         {html.escape(t(lang, 'contact_label'))}: <a href="mailto:{html.escape(CONTACT_EMAIL)}">{html.escape(CONTACT_EMAIL)}</a>
                     </span>
                 </div>
@@ -578,31 +656,48 @@ def render_header(lang: str):
         )
 
     with right:
-        pad, button_col = st.columns([0.25, 0.75])
+        pad, button_col = st.columns([0.20, 0.80])
         with button_col:
             next_lang = "en" if lang == "vi" else "vi"
             button_label = t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese")
             if st.button(button_label, key="toggle_language_button", use_container_width=True):
                 st.session_state["lang"] = next_lang
                 st.rerun()
-        if LOGO_UNIVERSITY_PATH.exists():
-            st.image(str(LOGO_UNIVERSITY_PATH), width=92)
-
+        if university_logo_html:
+            st.markdown(university_logo_html, unsafe_allow_html=True)
 
 def render_guidance(lang: str):
     st.markdown(
         f"""
-        <div style="border:1px solid #d7dee8; background:#f7fafc; padding:0.95rem 1rem; border-radius:12px; margin-bottom:0.75rem;">
-            <div style="font-weight:700; margin-bottom:0.45rem; color:#1f2937;">{html.escape(t(lang, 'guide_title'))}</div>
-            <ul style="margin:0.1rem 0 0 1.15rem; padding:0; line-height:1.65;">
-                <li>{html.escape(t(lang, 'guide_point_1'))}</li>
-                <li>{html.escape(t(lang, 'guide_point_2'))}</li>
+        <div style="border:1px solid rgba(148, 163, 184, 0.38); background:rgba(148, 163, 184, 0.10); padding:0.95rem 1rem; border-radius:12px; margin-bottom:0.75rem; color:inherit;">
+            <div style="font-weight:700; margin-bottom:0.45rem; color:inherit;">{html.escape(t(lang, 'guide_title'))}</div>
+            <ul style="margin:0.1rem 0 0 1.15rem; padding:0; line-height:1.65; color:inherit;">
+                <li style="color:inherit;">{html.escape(t(lang, 'guide_point_1'))}</li>
+                <li style="color:inherit;">{html.escape(t(lang, 'guide_point_2'))}</li>
             </ul>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+
+def render_quick_definitions(model_key: str, lang: str):
+    required_fields = model_required_inputs(model_key)
+    section_to_inputs = defaultdict(list)
+    for name in required_fields:
+        section_to_inputs[INPUT_DEFS[name]["section"]].append(name)
+
+    container = st.popover(t(lang, "quick_definitions")) if hasattr(st, "popover") else st.expander(t(lang, "quick_definitions"), expanded=False)
+    with container:
+        st.caption(t(lang, "quick_definitions_caption"))
+        for section in SECTION_ORDER:
+            names = section_to_inputs.get(section, [])
+            if not names:
+                continue
+            st.markdown(f"**{section_label(section, lang)}**")
+            for name in names:
+                help_text = input_help(name, lang) or ""
+                st.markdown(f"- **{input_label(name, lang)}**: {help_text}")
 
 def show_model_summary(model_key: str, lang: str):
     model = MODELS[model_key]
@@ -615,10 +710,19 @@ def show_model_summary(model_key: str, lang: str):
             st.write(f"- **{note_label(label, lang)}:** {value}")
 
     required_fields = model_required_inputs(model_key)
-    required_labels = [input_label(name, lang) for name in required_fields]
+    section_to_inputs = defaultdict(list)
+    for name in required_fields:
+        section_to_inputs[INPUT_DEFS[name]["section"]].append(name)
+
     with st.expander(t(lang, "required_inputs"), expanded=True):
-        for label in required_labels:
-            st.write(f"- {label}")
+        for section in SECTION_ORDER:
+            names = section_to_inputs.get(section, [])
+            if not names:
+                continue
+            st.markdown(f"**{section_label(section, lang)}**")
+            for name in names:
+                st.write(f"- {input_label(name, lang)}")
+        render_quick_definitions(model_key, lang)
 
     with st.expander(t(lang, "show_coefficients"), expanded=False):
         coef_df = pd.DataFrame(model["rows"]).rename(
@@ -633,7 +737,6 @@ def show_model_summary(model_key: str, lang: str):
 
     with st.expander(t(lang, "show_formula"), expanded=False):
         st.code(model["formula"])
-
 
 def build_print_report_html(model_key: str, lang: str) -> str:
     result = st.session_state.get(f"result_{model_key}")

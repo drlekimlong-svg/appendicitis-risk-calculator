@@ -25,12 +25,12 @@ Chỉ cần cập nhật lại repository GitHub đang dùng để deploy.
 
 ## Sau khi cập nhật xong
 Khi mở link public, bản mới sẽ có:
-- mặc định giao diện Tiếng Việt
-- nút đổi ngôn ngữ ở góc phải phía trên
-- 2 logo ở đầu trang
-- version hiển thị trên giao diện
-- email liên hệ `Longlk@pnt.edu.vn`
-- phần gợi ý cách dùng mô hình
+- logo bệnh viện và trường ở đầu trang
+- giao diện gợi ý cách dùng đọc được cả ở Light và Dark mode
+- bỏ chữ `workbook` ở các expander hiển thị
+- phiên bản mới `1.0.2`
+- định nghĩa ngắn cho các biến số dưới dạng tooltip `?` trong form
+- nút **Định nghĩa ngắn các biến** trong ô tóm tắt để xem nhanh mà không làm kéo dài trang
 
 ## Nếu logo vẫn không hiện
 Nguyên nhân gần như luôn là thiếu thư mục `assets/` hoặc upload sai vị trí file logo.
