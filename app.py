@@ -2,6 +2,7 @@ import base64
 import html
 import json
 import math
+import re
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -106,6 +107,12 @@ TEXT = {
         "save_success": "Result saved successfully.",
         "save_failure": "Could not save the result. Please check the database configuration.",
         "save_privacy_note": "Do not enter direct patient identifiers in this web app if you plan to save records.",
+        "research_id_label": "Research ID (8 digits)",
+        "research_id_help": "Use the study ID only. Enter exactly 8 digits; do not use medical record number, name, or phone number.",
+        "research_id_placeholder": "Example: 24000001",
+        "research_id_required": "Enter the 8-digit Research ID before saving.",
+        "research_id_invalid": "Research ID must contain exactly 8 digits.",
+        "save_requires_result": "Calculate a prediction first, then save.",
     },
     "vi": {
         "model_selection": "Lựa chọn mô hình",
@@ -185,6 +192,12 @@ TEXT = {
         "save_success": "Đã lưu kết quả thành công.",
         "save_failure": "Không thể lưu kết quả. Vui lòng kiểm tra cấu hình cơ sở dữ liệu.",
         "save_privacy_note": "Không nhập thông tin định danh trực tiếp của người bệnh nếu anh dự định lưu bản ghi.",
+        "research_id_label": "ID nghiên cứu (8 chữ số)",
+        "research_id_help": "Chỉ dùng mã nghiên cứu. Nhập đúng 8 chữ số; không dùng số hồ sơ, họ tên hoặc số điện thoại.",
+        "research_id_placeholder": "Ví dụ: 24000001",
+        "research_id_required": "Hãy nhập ID nghiên cứu 8 chữ số trước khi lưu.",
+        "research_id_invalid": "ID nghiên cứu phải gồm đúng 8 chữ số.",
+        "save_requires_result": "Hãy tính nguy cơ trước rồi mới lưu.",
     },
 }
 
@@ -398,7 +411,7 @@ FOOTER_NOTES = {
 }
 
 CONTACT_EMAIL = APP_METADATA.get("contact_email", "Longlk@pnt.edu.vn")
-APP_VERSION = str(APP_METADATA.get("version", "1.0.1"))
+APP_VERSION = str(APP_METADATA.get("version", "1.2.0"))
 
 
 def user_info_dict() -> dict:
@@ -456,6 +469,14 @@ def allowed_member_emails() -> set[str]:
     return {str(item).strip().lower() for item in raw_values if str(item).strip()}
 
 
+def normalize_research_id(raw_value: str) -> str:
+    return str(raw_value or "").strip()
+
+
+def research_id_is_valid(raw_value: str) -> bool:
+    return bool(re.fullmatch(r"\d{8}", normalize_research_id(raw_value)))
+
+
 def member_can_save() -> tuple[bool, str]:
     if not auth_configured():
         return False, "auth_not_configured"
@@ -497,6 +518,7 @@ def initialize_storage() -> bool:
             created_at_utc TEXT NOT NULL,
             user_email TEXT,
             user_name TEXT,
+            research_id TEXT,
             model_key TEXT NOT NULL,
             model_display_name TEXT NOT NULL,
             ui_language TEXT NOT NULL,
@@ -511,9 +533,12 @@ def initialize_storage() -> bool:
         """
     )
 
+    alter_stmt = sql_text("ALTER TABLE saved_predictions ADD COLUMN IF NOT EXISTS research_id TEXT")
+
     try:
         with engine.begin() as conn:
             conn.execute(create_stmt)
+            conn.execute(alter_stmt)
         return True
     except Exception:
         return False
@@ -523,7 +548,7 @@ def database_ready() -> bool:
     return bool(initialize_storage())
 
 
-def save_result_record(model_key: str, lang: str) -> tuple[bool, str]:
+def save_result_record(model_key: str, lang: str, research_id: str) -> tuple[bool, str]:
     engine = get_db_engine()
     if engine is None or not initialize_storage():
         return False, "db_not_configured"
@@ -553,12 +578,12 @@ def save_result_record(model_key: str, lang: str) -> tuple[bool, str]:
     insert_stmt = sql_text(
         """
         INSERT INTO saved_predictions (
-            id, created_at_utc, user_email, user_name, model_key, model_display_name,
+            id, created_at_utc, user_email, user_name, research_id, model_key, model_display_name,
             ui_language, app_version, probability, ci_low, ci_high, linear_predictor,
             input_json, result_json
         )
         VALUES (
-            :id, :created_at_utc, :user_email, :user_name, :model_key, :model_display_name,
+            :id, :created_at_utc, :user_email, :user_name, :research_id, :model_key, :model_display_name,
             :ui_language, :app_version, :probability, :ci_low, :ci_high, :linear_predictor,
             :input_json, :result_json
         )
@@ -570,6 +595,7 @@ def save_result_record(model_key: str, lang: str) -> tuple[bool, str]:
         "created_at_utc": created_at_utc,
         "user_email": current_user_email(),
         "user_name": current_user_name(),
+        "research_id": normalize_research_id(research_id),
         "model_key": model_key,
         "model_display_name": model_display_name(model_key, lang),
         "ui_language": lang,
@@ -1032,8 +1058,33 @@ def render_member_save_section(model_key: str, lang: str):
         return
 
     st.success(t(lang, "member_member_can_save"))
-    if st.button(t(lang, "save_button"), key=f"save_button_{model_key}", use_container_width=True):
-        ok, _ = save_result_record(model_key, lang)
+
+    research_id = st.text_input(
+        t(lang, "research_id_label"),
+        value=st.session_state.get(f"research_id_{model_key}", ""),
+        max_chars=8,
+        placeholder=t(lang, "research_id_placeholder"),
+        help=t(lang, "research_id_help"),
+        key=f"research_id_{model_key}",
+    )
+    research_id_clean = normalize_research_id(research_id)
+    has_result = bool(st.session_state.get(f"result_{model_key}"))
+
+    if not research_id_clean:
+        st.info(t(lang, "research_id_required"))
+    elif not research_id_is_valid(research_id_clean):
+        st.warning(t(lang, "research_id_invalid"))
+
+    if not has_result:
+        st.info(t(lang, "save_requires_result"))
+
+    if st.button(
+        t(lang, "save_button"),
+        key=f"save_button_{model_key}",
+        use_container_width=True,
+        disabled=(not research_id_is_valid(research_id_clean)) or (not has_result),
+    ):
+        ok, _ = save_result_record(model_key, lang, research_id_clean)
         if ok:
             st.success(t(lang, "save_success"))
         else:

@@ -182,3 +182,8 @@ Lưu ý quan trọng:
 - **Guest**: tính nguy cơ và in kết quả như cũ, nhưng **không lưu** dữ liệu.
 - **Member**: đăng nhập xong mới có thể lưu.
 - Nếu app public cần lưu dữ liệu lâu dài, nên dùng **remote PostgreSQL**, không nên dựa vào SQLite local.
+
+
+## Thiết lập Google login + PostgreSQL
+
+Dùng file `GOOGLE_LOGIN_POSTGRES_SETUP_COPY_PASTE_VI.md` và `SECRETS_EXAMPLE.toml` trong bộ này.

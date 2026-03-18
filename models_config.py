@@ -37,7 +37,7 @@ APP_METADATA = {'app_title': 'Complicated Appendicitis Risk Calculator',
  'affiliation_lines_vi': ['Bộ môn Ngoại khoa - Khoa Y - Trường Đại học Y khoa Phạm Ngọc Thạch',
                           'Bệnh viện Nhân dân Gia Định'],
  'contact_email': 'Longlk@pnt.edu.vn',
- 'version': '1.1.0',
+ 'version': '1.2.0',
  'footer_note_en': 'For research and educational use. This calculator does not replace clinical judgment, imaging '
                    'review, pathology, or institutional treatment protocols.',
  'footer_note_vi': 'Chỉ dùng cho nghiên cứu và giáo dục. Công cụ này không thay thế đánh giá lâm sàng, đọc hình ảnh, '
