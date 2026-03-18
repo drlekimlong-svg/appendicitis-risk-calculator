@@ -15,8 +15,6 @@ from models_config import APP_METADATA, INPUT_DEFS, MODELS, SECTION_ORDER, TERM_
 
 ROOT = Path(__file__).resolve().parent
 ASSETS_DIR = ROOT / "assets"
-LOGO_HOSPITAL_PATH = ASSETS_DIR / "logo_gia_dinh.png"
-LOGO_UNIVERSITY_PATH = ASSETS_DIR / "logo_pnt.png"
 
 
 st.set_page_config(
@@ -28,7 +26,6 @@ st.set_page_config(
 
 TEXT = {
     "en": {
-        "language": "Language",
         "model_selection": "Model selection",
         "choose_model": "Choose one model",
         "research_warning": "Research / educational use only. Do not use this web app as a stand-alone basis for diagnosis or treatment.",
@@ -70,13 +67,6 @@ TEXT = {
         "coefficient_beta": "Beta",
         "coefficient_coding": "Coding / reference",
         "coefficient_or": "OR = exp(beta)",
-        "option_none": "None",
-        "option_guarding": "Guarding",
-        "option_rebound_positive": "Rebound tenderness positive",
-        "option_fat_none": "None",
-        "option_fat_mild": "Mild",
-        "option_fat_moderate": "Moderate",
-        "option_fat_severe": "Severe",
         "notes_interactions": "Interactions",
         "notes_missing": "Missing data handling",
         "notes_note": "Note",
@@ -86,9 +76,17 @@ TEXT = {
         "report_lp": "Linear predictor (LP)",
         "report_crp_transformed": "CRP transformed for the model",
         "affiliation_heading": "Authors",
+        "switch_to_english": "English",
+        "switch_to_vietnamese": "Tiếng Việt",
+        "version_label": "Version",
+        "contact_label": "Contact",
+        "guide_title": "Suggested workflow",
+        "guide_point_1": "For the quickest practical estimate, start with Model 2 because it uses fewer inputs.",
+        "guide_point_2": "When fuller clinical and CT information is available and you want a more detailed assessment, switch to Model 1 or Model 3.",
+        "report_version": "Version",
+        "report_contact": "Contact",
     },
     "vi": {
-        "language": "Ngôn ngữ",
         "model_selection": "Lựa chọn mô hình",
         "choose_model": "Chọn mô hình",
         "research_warning": "Chỉ dùng cho nghiên cứu / giáo dục. Không sử dụng webapp này như căn cứ độc lập cho chẩn đoán hoặc điều trị.",
@@ -98,7 +96,7 @@ TEXT = {
         "input_form_caption": "Chỉ hiển thị các biến cần thiết cho mô hình đang chọn.",
         "calculate_risk": "Tính nguy cơ",
         "risk_calculated": "Đã tính nguy cơ thành công.",
-        "prediction": "Prediction",
+        "prediction": "Kết quả dự đoán",
         "enter_values_prompt": "Nhập các biến trong biểu mẫu rồi bấm **Tính nguy cơ**.",
         "predicted_probability": "Xác suất dự đoán viêm ruột thừa có biến chứng",
         "ci_label": "KTC 95%",
@@ -130,13 +128,6 @@ TEXT = {
         "coefficient_beta": "Hệ số beta",
         "coefficient_coding": "Mã hóa / mốc tham chiếu",
         "coefficient_or": "OR = exp(beta)",
-        "option_none": "Không",
-        "option_guarding": "Đề kháng",
-        "option_rebound_positive": "Phản ứng dội dương tính",
-        "option_fat_none": "Không",
-        "option_fat_mild": "Ít",
-        "option_fat_moderate": "Trung bình",
-        "option_fat_severe": "Nhiều",
         "notes_interactions": "Tương tác",
         "notes_missing": "Xử lý dữ liệu thiếu",
         "notes_note": "Ghi chú",
@@ -146,6 +137,15 @@ TEXT = {
         "report_lp": "Bộ dự báo tuyến tính (LP)",
         "report_crp_transformed": "CRP đã biến đổi cho mô hình",
         "affiliation_heading": "Tác giả",
+        "switch_to_english": "English",
+        "switch_to_vietnamese": "Tiếng Việt",
+        "version_label": "Phiên bản",
+        "contact_label": "Liên hệ",
+        "guide_title": "Gợi ý cách sử dụng",
+        "guide_point_1": "Nếu cần đánh giá nhanh gọn, nên bắt đầu với Mô hình 2 vì cần ít biến hơn.",
+        "guide_point_2": "Khi có đầy đủ dữ liệu lâm sàng và CT và muốn đánh giá chi tiết hơn, chuyển sang Mô hình 1 hoặc Mô hình 3.",
+        "report_version": "Phiên bản",
+        "report_contact": "Liên hệ",
     },
 }
 
@@ -295,6 +295,26 @@ FOOTER_NOTES = {
     ),
 }
 
+CONTACT_EMAIL = APP_METADATA.get("contact_email", "Longlk@pnt.edu.vn")
+APP_VERSION = str(APP_METADATA.get("version", "1.0.1"))
+
+
+def resolve_asset_path(filename: str) -> Path:
+    candidates = [
+        ASSETS_DIR / filename,
+        ROOT / filename,
+        Path.cwd() / "assets" / filename,
+        Path.cwd() / filename,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return ASSETS_DIR / filename
+
+
+LOGO_HOSPITAL_PATH = resolve_asset_path("logo_gia_dinh.png")
+LOGO_UNIVERSITY_PATH = resolve_asset_path("logo_pnt.png")
+
 
 def image_to_base64(path: Path) -> str:
     if not path.exists():
@@ -306,8 +326,15 @@ LOGO_HOSPITAL_BASE64 = image_to_base64(LOGO_HOSPITAL_PATH)
 LOGO_UNIVERSITY_BASE64 = image_to_base64(LOGO_UNIVERSITY_PATH)
 
 
+def version_text(lang: str) -> str:
+    return f"{t(lang, 'version_label')} {APP_VERSION}"
+
+
+def contact_text(lang: str) -> str:
+    return f"{t(lang, 'contact_label')}: {CONTACT_EMAIL}"
+
+
 def sigmoid(x: float) -> float:
-    """Numerically stable logistic function."""
     if x >= 0:
         z = math.exp(-x)
         return 1.0 / (1.0 + z)
@@ -316,7 +343,6 @@ def sigmoid(x: float) -> float:
 
 
 def evaluate_term(term: str, values: dict) -> float:
-    """Convert user inputs to the design-matrix value for one statistical term."""
     rule = TERM_RULES[term]
     rule_type = rule["type"]
     input_name = rule["input"]
@@ -337,7 +363,6 @@ def evaluate_term(term: str, values: dict) -> float:
 
 
 def model_required_inputs(model_key: str) -> list[str]:
-    """Return only the user-input variables actually needed by the active terms."""
     model = MODELS[model_key]
     needed = []
     seen = set()
@@ -428,7 +453,6 @@ def validate_inputs(model_key: str, values: dict, lang: str) -> list[str]:
 
 
 def predict(model_key: str, values: dict) -> dict:
-    """Compute LP, predicted probability, and CI if vcov is available."""
     model = MODELS[model_key]
     lp = float(model["intercept"])
 
@@ -480,7 +504,6 @@ def predict(model_key: str, values: dict) -> dict:
 
 
 def render_widget(input_name: str, lang: str):
-    """Render one Streamlit widget and return the internal value."""
     spec = INPUT_DEFS[input_name]
     widget_key = f"widget_{input_name}"
     label = input_label(input_name, lang)
@@ -525,11 +548,11 @@ def render_widget(input_name: str, lang: str):
 
 
 def render_header(lang: str):
-    left, center, right = st.columns([0.16, 0.68, 0.16], gap="small")
+    left, center, right = st.columns([0.14, 0.66, 0.20], gap="small")
 
     with left:
         if LOGO_HOSPITAL_PATH.exists():
-            st.image(str(LOGO_HOSPITAL_PATH), width=100)
+            st.image(str(LOGO_HOSPITAL_PATH), width=92)
 
     with center:
         authors_text = ", ".join(AUTHORS_BY_LANG[lang])
@@ -539,16 +562,46 @@ def render_header(lang: str):
             <div style="text-align:center; padding-top:4px;">
                 <h1 style="margin-bottom:0.15rem;">{html.escape(t(lang, 'app_title'))}</h1>
                 <div style="font-size:1.05rem; margin-bottom:0.55rem;">{html.escape(t(lang, 'app_subtitle'))}</div>
-                <div style="font-weight:600; margin-bottom:0.25rem; line-height:1.45;">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
-                <div style="line-height:1.45;">{affiliation_lines}</div>
+                <div style="font-weight:600; margin-bottom:0.25rem; line-height:1.5;">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
+                <div style="line-height:1.5;">{affiliation_lines}</div>
+                <div style="margin-top:0.55rem; display:flex; justify-content:center; flex-wrap:wrap; gap:8px;">
+                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:#eef4fb; border:1px solid #d7dee8; border-radius:999px; font-size:0.92rem;">
+                        {html.escape(version_text(lang))}
+                    </span>
+                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:#eef4fb; border:1px solid #d7dee8; border-radius:999px; font-size:0.92rem;">
+                        {html.escape(t(lang, 'contact_label'))}: <a href="mailto:{html.escape(CONTACT_EMAIL)}">{html.escape(CONTACT_EMAIL)}</a>
+                    </span>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
     with right:
+        pad, button_col = st.columns([0.25, 0.75])
+        with button_col:
+            next_lang = "en" if lang == "vi" else "vi"
+            button_label = t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese")
+            if st.button(button_label, key="toggle_language_button", use_container_width=True):
+                st.session_state["lang"] = next_lang
+                st.rerun()
         if LOGO_UNIVERSITY_PATH.exists():
-            st.image(str(LOGO_UNIVERSITY_PATH), width=100)
+            st.image(str(LOGO_UNIVERSITY_PATH), width=92)
+
+
+def render_guidance(lang: str):
+    st.markdown(
+        f"""
+        <div style="border:1px solid #d7dee8; background:#f7fafc; padding:0.95rem 1rem; border-radius:12px; margin-bottom:0.75rem;">
+            <div style="font-weight:700; margin-bottom:0.45rem; color:#1f2937;">{html.escape(t(lang, 'guide_title'))}</div>
+            <ul style="margin:0.1rem 0 0 1.15rem; padding:0; line-height:1.65;">
+                <li>{html.escape(t(lang, 'guide_point_1'))}</li>
+                <li>{html.escape(t(lang, 'guide_point_2'))}</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def show_model_summary(model_key: str, lang: str):
@@ -596,20 +649,15 @@ def build_print_report_html(model_key: str, lang: str) -> str:
 
     probability_pct = result["probability"] * 100.0
     result_rows = [
-        (
-            t(lang, "report_probability"),
-            f"{probability_pct:.1f}%",
-        ),
-        (
-            t(lang, "report_lp"),
-            f"{result['lp']:.4f}",
-        ),
+        (t(lang, "report_probability"), f"{probability_pct:.1f}%"),
+        (t(lang, "report_lp"), f"{result['lp']:.4f}"),
     ]
 
     if result["ci"] is not None:
         ci_low = result["ci"]["prob_low"] * 100.0
         ci_high = result["ci"]["prob_high"] * 100.0
-        result_rows.insert(1, (t(lang, "ci_label"), f"{ci_low:.1f}% to {ci_high:.1f}%" if lang == 'en' else f"{ci_low:.1f}% đến {ci_high:.1f}%"))
+        ci_text = f"{ci_low:.1f}% to {ci_high:.1f}%" if lang == "en" else f"{ci_low:.1f}% đến {ci_high:.1f}%"
+        result_rows.insert(1, (t(lang, "ci_label"), ci_text))
 
     if "lab_crp_model" in MODELS[model_key]["active_terms"] and result["transformed_crp"] is not None:
         result_rows.append((t(lang, "report_crp_transformed"), f"{result['transformed_crp']:.4f}"))
@@ -736,6 +784,10 @@ def build_print_report_html(model_key: str, lang: str) -> str:
                 font-size: 12px;
                 line-height: 1.5;
             }}
+            a {{
+                color: var(--blue);
+                text-decoration: none;
+            }}
             @media print {{
                 body {{
                     padding: 0;
@@ -769,6 +821,8 @@ def build_print_report_html(model_key: str, lang: str) -> str:
 
             <div class="meta">
                 <div><strong>{html.escape(t(lang, 'report_model'))}:</strong> {html.escape(model_text)}</div>
+                <div><strong>{html.escape(t(lang, 'report_version'))}:</strong> {html.escape(APP_VERSION)}</div>
+                <div><strong>{html.escape(t(lang, 'report_contact'))}:</strong> <a href="mailto:{html.escape(CONTACT_EMAIL)}">{html.escape(CONTACT_EMAIL)}</a></div>
                 <div><strong>{html.escape(t(lang, 'report_datetime'))}:</strong> {html.escape(now_text)}</div>
             </div>
 
@@ -816,7 +870,7 @@ def render_printable_report(model_key: str, lang: str):
 
     report_html = build_print_report_html(model_key, lang)
     required_count = len(model_required_inputs(model_key))
-    component_height = min(max(760 + 30 * required_count, 900), 1450)
+    component_height = min(max(760 + 30 * required_count, 920), 1500)
     components.html(report_html, height=component_height, scrolling=True)
 
 
@@ -862,17 +916,21 @@ def show_result_panel(model_key: str, lang: str):
     render_printable_report(model_key, lang)
 
 
-def main():
-    with st.sidebar:
-        st.header(t("en", "model_selection") + " / " + t("vi", "model_selection"))
-        language_display = st.selectbox(
-            t("en", "language") + " / " + t("vi", "language"),
-            options=["English", "Tiếng Việt"],
-            index=0,
-            key="language_select",
-        )
-        lang = "en" if language_display == "English" else "vi"
+def initialize_state():
+    if "lang" not in st.session_state:
+        st.session_state["lang"] = "vi"
 
+    model_keys = list(MODELS.keys())
+    if "selected_model" not in st.session_state and model_keys:
+        st.session_state["selected_model"] = model_keys[0]
+
+
+def main():
+    initialize_state()
+    lang = st.session_state.get("lang", "vi")
+
+    with st.sidebar:
+        st.header(t(lang, "model_selection"))
         model_keys = list(MODELS.keys())
         st.selectbox(
             t(lang, "choose_model"),
@@ -884,9 +942,11 @@ def main():
 
         st.markdown("---")
         st.warning(t(lang, "research_warning"))
+        st.caption(f"{version_text(lang)} · {contact_text(lang)}")
 
     render_header(lang)
     st.divider()
+    render_guidance(lang)
 
     input_col, summary_col = st.columns([1.15, 0.85], gap="large")
 
@@ -931,7 +991,7 @@ def main():
         show_model_summary(model_key, lang)
 
     st.divider()
-    st.caption(FOOTER_NOTES[lang])
+    st.caption(f"{FOOTER_NOTES[lang]} · {version_text(lang)} · {contact_text(lang)}")
 
 
 if __name__ == "__main__":

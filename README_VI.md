@@ -1,7 +1,8 @@
 # Streamlit web app cho 3 mô hình dự đoán viêm ruột thừa có biến chứng — phiên bản song ngữ
 
 Gói này đã được cập nhật theo yêu cầu mới:
-- chọn giao diện **English / Tiếng Việt**
+- mặc định mở ở giao diện **Tiếng Việt**
+- có nút chuyển nhanh **English / Tiếng Việt** ở góc phải phía trên
 - bỏ phần ghi chú dành cho developer, thay bằng khu vực **Prediction**
 - có **nút Print / In** để in bản tổng hợp thông số và kết quả dự đoán
 - cập nhật tác giả song ngữ theo danh sách mới của nhóm nghiên cứu
@@ -99,12 +100,13 @@ Cách xử lý:
 
 ## PHẦN 4 — Cách dùng app
 
-1. Chọn ngôn ngữ **English** hoặc **Tiếng Việt**
-2. Chọn 1 trong 3 mô hình
-3. Nhập các biến cần thiết
-4. Bấm **Calculate risk / Tính nguy cơ**
-5. Xem khu vực **Prediction**
-6. Bấm **Print / In** để tạo bản in tổng hợp các thông số và kết quả dự đoán
+1. Khi mở app, giao diện mặc định là **Tiếng Việt**
+2. Nếu cần đổi ngôn ngữ, bấm nút **English / Tiếng Việt** ở góc phải phía trên
+3. Chọn 1 trong 3 mô hình
+4. Nhập các biến cần thiết
+5. Bấm **Tính nguy cơ / Calculate risk**
+6. Xem khu vực **Kết quả dự đoán / Prediction**
+7. Bấm **In / Print** để tạo bản in tổng hợp các thông số và kết quả dự đoán
 
 ---
 

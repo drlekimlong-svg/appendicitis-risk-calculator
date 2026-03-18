@@ -29,7 +29,8 @@ Anh cần có:
    - `models_config.py`
    - `requirements.txt`
    - `.streamlit/config.toml`
-   - `assets/...`
+   - `assets/logo_gia_dinh.png`
+   - `assets/logo_pnt.png`
 5. Bấm **Commit changes**.
 
 ## Phần D — Deploy trên Streamlit Community Cloud

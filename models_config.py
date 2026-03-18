@@ -10,13 +10,38 @@ To add a new model later:
 4. If you want a 95% CI for the predicted probability, also add ci_order + vcov.
 """
 
-APP_METADATA = {'affiliation_lines': ['Department of Surgery, Faculty of Medicine, Pham Ngoc Thach University of Medicine',
-                       'Nhan Dan Gia Dinh Hospital'],
+APP_METADATA = {'app_title': 'Complicated Appendicitis Risk Calculator',
  'app_subtitle': 'Risk estimation using three author-supplied multivariable models.',
- 'app_title': 'Complicated Appendicitis Risk Calculator',
- 'author_name': 'Kim-Long Le',
- 'footer_note': 'For research and educational use. This calculator does not replace clinical judgment, imaging review, '
-                'pathology, or institutional treatment protocols.'}
+ 'author_names_vi': ['Lê Kim Long',
+                     'Nguyễn Anh Dũng',
+                     'Lê Nguyên Khôi',
+                     'Dương Ngọc Quỳnh Như',
+                     'Phạm Trí Nhân',
+                     'Trịnh Mỹ Trân',
+                     'Trần Minh Quang',
+                     'Phạm Phú Cường',
+                     'Thái Khánh Phát',
+                     'Mai Phan Tường Anh'],
+ 'author_names_en': ['Kim-Long Le',
+                     'Dung Anh Nguyen',
+                     'Nguyen-Khoi Le',
+                     'Quynh-Nhu Duong-Ngoc',
+                     'Tri-Nhan Pham',
+                     'My-Tran Trinh',
+                     'Minh-Quang Tran',
+                     'Phu-Cuong Pham',
+                     'Khanh-Phat Thai',
+                     'Tuong-Anh Mai-Phan'],
+ 'affiliation_lines_en': ['Department of Surgery, Faculty of Medicine, Pham Ngoc Thach University of Medicine',
+                          'Nhan Dan Gia Dinh Hospital'],
+ 'affiliation_lines_vi': ['Bộ môn Ngoại khoa - Khoa Y - Trường Đại học Y khoa Phạm Ngọc Thạch',
+                          'Bệnh viện Nhân dân Gia Định'],
+ 'contact_email': 'Longlk@pnt.edu.vn',
+ 'version': '1.0.1',
+ 'footer_note_en': 'For research and educational use. This calculator does not replace clinical judgment, imaging '
+                   'review, pathology, or institutional treatment protocols.',
+ 'footer_note_vi': 'Chỉ dùng cho nghiên cứu và giáo dục. Công cụ này không thay thế đánh giá lâm sàng, đọc hình ảnh, '
+                   'giải phẫu bệnh hoặc phác đồ điều trị của cơ sở.'}
 
 SECTION_ORDER = ['Patient characteristics', 'Clinical findings', 'Laboratory findings', 'CT findings']
 
