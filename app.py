@@ -7,6 +7,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -101,10 +102,6 @@ TEXT = {
         "member_member_can_save": "Signed-in members can save non-identifiable inputs and prediction results.",
         "member_not_authorized": "Your account is signed in but is not authorized for saving.",
         "member_db_not_configured": "Database storage is not configured, so saving is disabled.",
-        "member_db_diagnostic": "Database diagnostic",
-        "member_run_db_test": "Run database self-test",
-        "member_db_ok": "Database connection is working.",
-        "member_db_error_prefix": "Database error",
         "member_email_missing": "Signed in, but no email claim was returned by the identity provider.",
         "save_section_title": "Member data storage",
         "save_button": "Save current result",
@@ -190,10 +187,6 @@ TEXT = {
         "member_member_can_save": "Thành viên đã đăng nhập có thể lưu bộ biến đầu vào và kết quả dự đoán không định danh.",
         "member_not_authorized": "Tài khoản đã đăng nhập nhưng chưa được cấp quyền lưu dữ liệu.",
         "member_db_not_configured": "Chưa cấu hình nơi lưu dữ liệu nên chức năng lưu đang bị tắt.",
-        "member_db_diagnostic": "Chẩn đoán kết nối cơ sở dữ liệu",
-        "member_run_db_test": "Chạy kiểm tra kết nối cơ sở dữ liệu",
-        "member_db_ok": "Kết nối cơ sở dữ liệu đang hoạt động.",
-        "member_db_error_prefix": "Lỗi cơ sở dữ liệu",
         "member_email_missing": "Đã đăng nhập nhưng nhà cung cấp định danh không trả về email.",
         "save_section_title": "Lưu dữ liệu thành viên",
         "save_button": "Lưu kết quả hiện tại",
@@ -419,7 +412,78 @@ FOOTER_NOTES = {
 }
 
 CONTACT_EMAIL = APP_METADATA.get("contact_email", "Longlk@pnt.edu.vn")
-APP_VERSION = str(APP_METADATA.get("version", "1.2.0"))
+APP_VERSION = str(APP_METADATA.get("version", "1.2.1"))
+
+
+def get_query_param(name: str) -> str | None:
+    try:
+        value = st.query_params.get(name)
+    except Exception:
+        try:
+            value = st.experimental_get_query_params().get(name)
+        except Exception:
+            value = None
+
+    if isinstance(value, list):
+        return str(value[0]) if value else None
+    if value is None:
+        return None
+    return str(value)
+
+
+def sync_query_params(model_key: str, lang: str) -> None:
+    current_model = get_query_param("model")
+    current_lang = get_query_param("lang")
+    if current_model == model_key and current_lang == lang:
+        return
+
+    try:
+        st.query_params["model"] = model_key
+        st.query_params["lang"] = lang
+    except Exception:
+        try:
+            st.experimental_set_query_params(model=model_key, lang=lang)
+        except Exception:
+            pass
+
+
+def guide_model_link(model_key: str, lang: str) -> str:
+    labels = {
+        "model1_primary_lasso": {"en": "Model 1", "vi": "Mô hình 1"},
+        "model2_parsimonious": {"en": "Model 2", "vi": "Mô hình 2"},
+        "model3_stepwise": {"en": "Model 3", "vi": "Mô hình 3"},
+    }
+    label = labels[model_key][lang]
+    href = "?" + urlencode({"model": model_key, "lang": lang})
+    return (
+        f'<a href="{href}" style="color:inherit; text-decoration:underline; '
+        f'font-weight:600;">{html.escape(label)}</a>'
+    )
+
+
+def guide_point_html(point_number: int, lang: str) -> str:
+    if point_number == 1:
+        if lang == "vi":
+            return (
+                f'Nếu cần đánh giá nhanh gọn, nên bắt đầu với '
+                f'{guide_model_link("model2_parsimonious", lang)} vì cần ít biến hơn.'
+            )
+        return (
+            f'For the quickest practical estimate, start with '
+            f'{guide_model_link("model2_parsimonious", lang)} because it uses fewer inputs.'
+        )
+
+    if lang == "vi":
+        return (
+            f'Khi có đầy đủ dữ liệu lâm sàng và CT và muốn đánh giá chi tiết hơn, '
+            f'chuyển sang {guide_model_link("model1_primary_lasso", lang)} hoặc '
+            f'{guide_model_link("model3_stepwise", lang)}.'
+        )
+    return (
+        f'When fuller clinical and CT information is available and you want a more detailed assessment, '
+        f'switch to {guide_model_link("model1_primary_lasso", lang)} or '
+        f'{guide_model_link("model3_stepwise", lang)}.'
+    )
 
 
 def user_info_dict() -> dict:
@@ -477,41 +541,6 @@ def allowed_member_emails() -> set[str]:
     return {str(item).strip().lower() for item in raw_values if str(item).strip()}
 
 
-def db_config_present() -> bool:
-    try:
-        connections = st.secrets.get("connections", {})
-        app_db = connections.get("app_db", {})
-    except Exception:
-        return False
-
-    if not isinstance(app_db, dict):
-        return False
-
-    if app_db.get("url"):
-        return True
-
-    required = ["dialect", "host", "username"]
-    return all(bool(app_db.get(k)) for k in required)
-
-
-def format_exception_message(exc: Exception) -> str:
-    return f"{exc.__class__.__name__}: {exc}"
-
-
-def db_diagnostic_state() -> dict:
-    return st.session_state.setdefault(
-        "db_diagnostic", {"ok": None, "message": "", "config_present": db_config_present()}
-    )
-
-
-def set_db_diagnostic(ok: bool | None, message: str = "") -> None:
-    st.session_state["db_diagnostic"] = {
-        "ok": ok,
-        "message": message,
-        "config_present": db_config_present(),
-    }
-
-
 def normalize_research_id(raw_value: str) -> str:
     return str(raw_value or "").strip()
 
@@ -541,13 +570,18 @@ def member_can_save() -> tuple[bool, str]:
 
 @st.cache_resource(show_spinner=False)
 def get_db_engine():
-    conn = st.connection("app_db", type="sql")
-    return conn.engine
+    try:
+        conn = st.connection("app_db", type="sql")
+        return conn.engine
+    except Exception:
+        return None
 
 
 @st.cache_resource(show_spinner=False)
 def initialize_storage() -> bool:
     engine = get_db_engine()
+    if engine is None:
+        return False
 
     create_stmt = sql_text(
         """
@@ -573,20 +607,17 @@ def initialize_storage() -> bool:
 
     alter_stmt = sql_text("ALTER TABLE saved_predictions ADD COLUMN IF NOT EXISTS research_id TEXT")
 
-    with engine.begin() as conn:
-        conn.execute(create_stmt)
-        conn.execute(alter_stmt)
-    return True
+    try:
+        with engine.begin() as conn:
+            conn.execute(create_stmt)
+            conn.execute(alter_stmt)
+        return True
+    except Exception:
+        return False
 
 
 def database_ready() -> bool:
-    try:
-        ok = bool(initialize_storage())
-        set_db_diagnostic(True, "")
-        return ok
-    except Exception as exc:
-        set_db_diagnostic(False, format_exception_message(exc))
-        return False
+    return bool(initialize_storage())
 
 
 def save_result_record(model_key: str, lang: str, research_id: str) -> tuple[bool, str]:
@@ -914,7 +945,7 @@ def render_auth_controls(lang: str):
     if not user_is_logged_in():
         st.info(t(lang, "member_guest_status"))
         st.caption(t(lang, "member_guest_message"))
-        if st.button(t(lang, "member_login"), key="member_login_button", width="stretch"):
+        if st.button(t(lang, "member_login"), key="member_login_button", use_container_width=True):
             st.login()
         return
 
@@ -924,7 +955,7 @@ def render_auth_controls(lang: str):
     email = current_user_email()
     if email and display_name != email:
         st.caption(email)
-    if st.button(t(lang, "member_logout"), key="member_logout_button", width="stretch"):
+    if st.button(t(lang, "member_logout"), key="member_logout_button", use_container_width=True):
         st.logout()
 
 
@@ -983,21 +1014,25 @@ def render_header(lang: str):
         if st.button(
             t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese"),
             key="toggle_language_button",
-            width="stretch",
+            use_container_width=True,
         ):
             st.session_state["lang"] = "en" if lang == "vi" else "vi"
+            current_model = st.session_state.get("selected_model", list(MODELS.keys())[0])
+            sync_query_params(model_key=current_model, lang=st.session_state["lang"])
             st.rerun()
         render_auth_controls(lang)
 
 
 def render_guidance(lang: str):
+    point_1 = guide_point_html(1, lang)
+    point_2 = guide_point_html(2, lang)
     st.markdown(
         f"""
         <div style="border:1px solid rgba(148, 163, 184, 0.38); background:rgba(148, 163, 184, 0.10); padding:0.95rem 1rem; border-radius:12px; margin-bottom:0.75rem; color:inherit;">
             <div style="font-weight:700; margin-bottom:0.45rem; color:inherit;">{html.escape(t(lang, 'guide_title'))}</div>
             <ul style="margin:0.1rem 0 0 1.15rem; padding:0; line-height:1.65; color:inherit;">
-                <li style="color:inherit;">{html.escape(t(lang, 'guide_point_1'))}</li>
-                <li style="color:inherit;">{html.escape(t(lang, 'guide_point_2'))}</li>
+                <li style="color:inherit;">{point_1}</li>
+                <li style="color:inherit;">{point_2}</li>
             </ul>
         </div>
         """,
@@ -1057,29 +1092,10 @@ def show_model_summary(model_key: str, lang: str):
                 "or": t(lang, "coefficient_or"),
             }
         )
-        st.dataframe(coef_df, width="stretch", hide_index=True)
+        st.dataframe(coef_df, use_container_width=True, hide_index=True)
 
     with st.expander(t(lang, "show_formula"), expanded=False):
         st.code(model["formula"])
-
-
-def render_db_diagnostic_panel(lang: str):
-    state = db_diagnostic_state()
-    with st.expander(t(lang, "member_db_diagnostic"), expanded=(state.get("ok") is False)):
-        if st.button(t(lang, "member_run_db_test"), key="run_db_self_test", width="stretch"):
-            get_db_engine.clear()
-            initialize_storage.clear()
-            database_ready()
-            state = db_diagnostic_state()
-
-        state = db_diagnostic_state()
-        st.write(f"- **Secrets `[connections.app_db]` present:** {'Yes' if state.get('config_present') else 'No'}")
-        if state.get("ok") is True:
-            st.success(t(lang, "member_db_ok"))
-        elif state.get("ok") is False and state.get("message"):
-            st.error(f"{t(lang, 'member_db_error_prefix')}: {state['message']}")
-        else:
-            st.info(t(lang, "member_db_not_configured"))
 
 
 def render_member_save_section(model_key: str, lang: str):
@@ -1092,7 +1108,7 @@ def render_member_save_section(model_key: str, lang: str):
 
     if not user_is_logged_in():
         st.info(t(lang, "member_guest_message"))
-        if st.button(t(lang, "member_login"), key=f"member_login_from_save_{model_key}", width="stretch"):
+        if st.button(t(lang, "member_login"), key=f"member_login_from_save_{model_key}", use_container_width=True):
             st.login()
         return
 
@@ -1115,7 +1131,6 @@ def render_member_save_section(model_key: str, lang: str):
 
     if not database_ready():
         st.warning(t(lang, "member_db_not_configured"))
-        render_db_diagnostic_panel(lang)
         return
 
     st.success(t(lang, "member_member_can_save"))
@@ -1142,7 +1157,7 @@ def render_member_save_section(model_key: str, lang: str):
     if st.button(
         t(lang, "save_button"),
         key=f"save_button_{model_key}",
-        width="stretch",
+        use_container_width=True,
         disabled=(not research_id_is_valid(research_id_clean)) or (not has_result),
     ):
         ok, _ = save_result_record(model_key, lang, research_id_clean)
@@ -1427,7 +1442,7 @@ def show_result_panel(model_key: str, lang: str):
         contrib["contribution"] = contrib["contribution"].map(lambda x: f"{x:.6f}")
         st.dataframe(
             contrib[["display", "x_value", "beta", "contribution"]],
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
         )
 
@@ -1435,11 +1450,17 @@ def show_result_panel(model_key: str, lang: str):
 
 
 def initialize_state():
-    if "lang" not in st.session_state:
+    query_lang = get_query_param("lang")
+    if query_lang in {"vi", "en"}:
+        st.session_state["lang"] = query_lang
+    elif "lang" not in st.session_state:
         st.session_state["lang"] = "vi"
 
     model_keys = list(MODELS.keys())
-    if "selected_model" not in st.session_state and model_keys:
+    query_model = get_query_param("model")
+    if query_model in model_keys:
+        st.session_state["selected_model"] = query_model
+    elif "selected_model" not in st.session_state and model_keys:
         st.session_state["selected_model"] = model_keys[0]
 
 
@@ -1457,6 +1478,7 @@ def main():
             key="selected_model",
         )
         model_key = st.session_state["selected_model"]
+        sync_query_params(model_key=model_key, lang=lang)
 
         st.markdown("---")
         st.warning(t(lang, "research_warning"))
@@ -1491,7 +1513,7 @@ def main():
                     with cols[idx % 2]:
                         collected_values[input_name] = render_widget(input_name, lang)
 
-            submitted = st.form_submit_button(t(lang, "calculate_risk"), width="stretch")
+            submitted = st.form_submit_button(t(lang, "calculate_risk"), use_container_width=True)
 
         if submitted:
             warnings = validate_inputs(model_key, collected_values, lang)
