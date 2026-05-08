@@ -25,7 +25,16 @@ st.set_page_config(
     page_title="Complicated Appendicitis Risk Calculator",
     page_icon="🩺",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
+
+# Keep the hosted Streamlit toolbar compact. On mobile, the default Community
+# Cloud toolbar (Fork/GitHub/menu) can overlap the top logos. The project-level
+# .streamlit/config.toml sets the same option; this is an extra runtime guard.
+try:
+    st.set_option("client.toolbarMode", "minimal")
+except Exception:
+    pass
 
 
 TEXT = {
@@ -1093,7 +1102,8 @@ def inject_custom_css():
         /* Mobile-first refinements */
         @media (max-width: 760px) {
             .block-container {
-                padding-top: 0.55rem !important;
+                /* Extra safe top space for iOS/Safari and Streamlit Cloud toolbar. */
+                padding-top: 1.65rem !important;
                 padding-left: 0.65rem !important;
                 padding-right: 0.65rem !important;
                 padding-bottom: 4.8rem !important;
@@ -1113,7 +1123,7 @@ def inject_custom_css():
             .app-logo-row {
                 justify-content: center;
                 min-height: 52px;
-                padding-top: 0;
+                padding-top: 0.15rem;
                 gap: 10px;
             }
             .app-logo-row img {
