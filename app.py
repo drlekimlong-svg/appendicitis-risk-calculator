@@ -1102,8 +1102,8 @@ def inject_custom_css():
         /* Mobile-first refinements */
         @media (max-width: 760px) {
             .block-container {
-                /* Extra safe top space for iOS/Safari and Streamlit Cloud toolbar. */
-                padding-top: 1.65rem !important;
+                /* Extra safe top space for iOS/Safari plus the Streamlit Cloud / GitHub toolbar. */
+                padding-top: 3.75rem !important;
                 padding-left: 0.65rem !important;
                 padding-right: 0.65rem !important;
                 padding-bottom: 4.8rem !important;
@@ -1122,8 +1122,9 @@ def inject_custom_css():
 
             .app-logo-row {
                 justify-content: center;
-                min-height: 52px;
-                padding-top: 0.15rem;
+                min-height: 58px;
+                padding-top: 0.25rem;
+                margin-top: 0.35rem;
                 gap: 10px;
             }
             .app-logo-row img {
@@ -1139,7 +1140,14 @@ def inject_custom_css():
                 display: none;
             }
             .app-header-authors {
-                display: none;
+                display: block;
+                font-size: 0.68rem;
+                line-height: 1.25;
+                font-weight: 650;
+                margin: 0.22rem auto 0.18rem auto;
+                max-width: 100%;
+                text-align: center;
+                opacity: 0.96;
             }
             .app-header-affiliations {
                 font-size: 0.82rem;
