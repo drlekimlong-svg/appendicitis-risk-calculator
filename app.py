@@ -1069,6 +1069,9 @@ def inject_custom_css():
             font-weight: 600;
             margin: 0.45rem 0 0.2rem 0;
         }
+        .app-language-toggle-spacer {
+            height: 0.15rem;
+        }
         .section-caption-tight {
             margin-top: -0.2rem;
             margin-bottom: 0.35rem;
@@ -1134,11 +1137,19 @@ def inject_custom_css():
             }
             .app-header-pills {
                 margin-top: 0.35rem;
+                margin-bottom: 0.85rem;
                 gap: 6px;
             }
             .app-pill {
                 padding: 0.25rem 0.55rem;
                 font-size: 0.78rem;
+            }
+            .app-language-toggle-spacer {
+                height: 0.45rem;
+            }
+            /* Prevent the language switch button from visually touching the metadata pills on mobile. */
+            .app-language-toggle-spacer + div[data-testid="stButton"] button {
+                margin-top: 0.15rem !important;
             }
 
             h1, h2, h3 {
@@ -1250,6 +1261,7 @@ def render_header(lang: str):
         )
 
     with right:
+        st.markdown("<div class='app-language-toggle-spacer'></div>", unsafe_allow_html=True)
         if st.button(
             t(lang, "switch_to_english") if lang == "vi" else t(lang, "switch_to_vietnamese"),
             key="toggle_language_button",
