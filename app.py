@@ -985,6 +985,13 @@ def inject_custom_css():
     st.markdown(
         """
         <style>
+        :root {
+            --app-blue: #2563eb;
+            --app-border: rgba(148, 163, 184, 0.32);
+            --app-soft: rgba(148, 163, 184, 0.10);
+        }
+
+        /* Labels: keep the native Streamlit size, only make them easier to scan. */
         [data-testid="stNumberInput"] label p,
         [data-testid="stSelectbox"] label p,
         [data-testid="stTextInput"] label p {
@@ -995,48 +1002,180 @@ def inject_custom_css():
         [data-testid="stNumberInput"] label,
         [data-testid="stSelectbox"] label,
         [data-testid="stTextInput"] label {
-            margin-bottom: 0.2rem !important;
+            margin-bottom: 0.16rem !important;
         }
 
+        .app-header-title {
+            margin: 0 0 0.15rem 0;
+            line-height: 1.1;
+        }
+        .app-header-subtitle {
+            font-size: 1.05rem;
+            margin-bottom: 0.55rem;
+        }
+        .app-header-authors {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            line-height: 1.5;
+        }
+        .app-header-affiliations {
+            line-height: 1.5;
+        }
+        .app-header-pills {
+            margin-top: 0.55rem;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .app-pill {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            background: rgba(148, 163, 184, 0.12);
+            border: 1px solid var(--app-border);
+            border-radius: 999px;
+            font-size: 0.92rem;
+            color: inherit;
+        }
+        .app-logo-row {
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+            gap:14px;
+            min-height:96px;
+            padding-top:6px;
+        }
+        .app-logo-row img {
+            max-width:84px;
+            max-height:84px;
+            width:auto;
+            height:auto;
+            object-fit:contain;
+        }
+        .mobile-model-card {
+            margin: 0.2rem 0 0.65rem 0;
+        }
         .input-section-heading {
-            margin: 0.9rem 0 0.5rem 0;
-            padding: 0.5rem 0.8rem;
-            border-left: 4px solid #2563eb;
+            margin: 0.55rem 0 0.45rem 0;
+            padding: 0.48rem 0.75rem;
+            border-left: 4px solid var(--app-blue);
             background: rgba(37, 99, 235, 0.10);
             border-radius: 0.6rem;
             font-weight: 700;
-            font-size: 1.03rem;
+            font-size: 1rem;
         }
-
         .quick-switch-label {
             font-size: 0.92rem;
             font-weight: 600;
-            margin-bottom: 0.15rem;
+            margin: 0.45rem 0 0.2rem 0;
+        }
+        .section-caption-tight {
+            margin-top: -0.2rem;
+            margin-bottom: 0.35rem;
         }
 
+        /* Main calculation button: visible enough on desktop and mobile. */
         .stForm [data-testid="stFormSubmitButton"] button {
-            min-height: 3.2rem;
-            font-size: 1.08rem;
-            font-weight: 700;
+            min-height: 3.05rem;
+            font-weight: 800;
             border-radius: 0.85rem;
             box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
             transition: all 0.15s ease-in-out;
         }
-
         .stForm [data-testid="stFormSubmitButton"] button:hover {
             transform: translateY(-1px);
             box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
         }
 
-        @media (max-width: 900px) {
-            .stForm div[data-testid="stHorizontalBlock"] {
-                flex-direction: column !important;
-                gap: 0.35rem !important;
+        /* Mobile-first refinements */
+        @media (max-width: 760px) {
+            .block-container {
+                padding-top: 0.55rem !important;
+                padding-left: 0.65rem !important;
+                padding-right: 0.65rem !important;
+                padding-bottom: 4.8rem !important;
             }
 
-            .stForm div[data-testid="column"] {
+            /* Stack Streamlit columns on small screens. */
+            div[data-testid="stHorizontalBlock"] {
+                flex-wrap: wrap !important;
+                gap: 0.4rem !important;
+            }
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+                min-width: 100% !important;
                 width: 100% !important;
                 flex: 1 1 100% !important;
+            }
+
+            .app-logo-row {
+                justify-content: center;
+                min-height: 52px;
+                padding-top: 0;
+                gap: 10px;
+            }
+            .app-logo-row img {
+                max-width: 48px !important;
+                max-height: 48px !important;
+            }
+            .app-header-title {
+                font-size: 1.65rem !important;
+                margin-top: 0.15rem !important;
+                text-align: center;
+            }
+            .app-header-subtitle {
+                display: none;
+            }
+            .app-header-authors {
+                display: none;
+            }
+            .app-header-affiliations {
+                font-size: 0.82rem;
+                line-height: 1.35;
+            }
+            .app-header-pills {
+                margin-top: 0.35rem;
+                gap: 6px;
+            }
+            .app-pill {
+                padding: 0.25rem 0.55rem;
+                font-size: 0.78rem;
+            }
+
+            h1, h2, h3 {
+                line-height: 1.15 !important;
+            }
+            h2 {
+                font-size: 1.35rem !important;
+            }
+            h3 {
+                font-size: 1.1rem !important;
+            }
+            [data-testid="stVerticalBlockBorderWrapper"] {
+                padding: 0.55rem !important;
+            }
+            .input-section-heading {
+                font-size: 0.96rem;
+                padding: 0.42rem 0.65rem;
+                margin-top: 0.35rem;
+            }
+
+            /* Larger tap targets for phones without increasing label font size. */
+            button,
+            [data-testid="stSelectbox"] div[role="combobox"],
+            [data-testid="stNumberInput"] input,
+            [data-testid="stTextInput"] input {
+                min-height: 44px !important;
+            }
+            .stForm [data-testid="stFormSubmitButton"] button {
+                min-height: 3.25rem !important;
+                font-size: 1.02rem !important;
+            }
+            [data-testid="stCaptionContainer"],
+            .stCaptionContainer {
+                font-size: 0.78rem !important;
+            }
+            .stMetric {
+                padding: 0.25rem 0 !important;
             }
         }
         </style>
@@ -1069,15 +1208,15 @@ def render_auth_controls(lang: str):
 
 
 def render_header(lang: str):
-    left, center, right = st.columns([0.24, 0.56, 0.20], gap="small")
+    left, center, right = st.columns([0.22, 0.62, 0.16], gap="small")
 
     hospital_logo_html = (
-        f"<img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo' style='max-width:84px; max-height:84px; width:auto; height:auto; object-fit:contain;'>"
+        f"<img src='data:image/png;base64,{LOGO_HOSPITAL_BASE64}' alt='Hospital logo'>"
         if LOGO_HOSPITAL_BASE64
         else ""
     )
     university_logo_html = (
-        f"<img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo' style='max-width:84px; max-height:84px; width:auto; height:auto; object-fit:contain;'>"
+        f"<img src='data:image/png;base64,{LOGO_UNIVERSITY_BASE64}' alt='University logo'>"
         if LOGO_UNIVERSITY_BASE64
         else ""
     )
@@ -1089,30 +1228,21 @@ def render_header(lang: str):
         if university_logo_html:
             logos.append(university_logo_html)
         if logos:
-            st.markdown(
-                f"<div style='display:flex; align-items:center; justify-content:flex-start; gap:14px; min-height:96px; padding-top:6px;'>"
-                + "".join(logos)
-                + "</div>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<div class='app-logo-row'>" + "".join(logos) + "</div>", unsafe_allow_html=True)
 
     with center:
         authors_text = ", ".join(AUTHORS_BY_LANG[lang])
         affiliation_lines = "<br>".join(html.escape(line) for line in AFFILIATIONS[lang])
         st.markdown(
             f"""
-            <div style="text-align:center; padding-top:4px;">
-                <h1 style="margin-bottom:0.15rem;">{html.escape(t(lang, 'app_title'))}</h1>
-                <div style="font-size:1.05rem; margin-bottom:0.55rem;">{html.escape(t(lang, 'app_subtitle'))}</div>
-                <div style="font-weight:600; margin-bottom:0.25rem; line-height:1.5;">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
-                <div style="line-height:1.5;">{affiliation_lines}</div>
-                <div style="margin-top:0.55rem; display:flex; justify-content:center; flex-wrap:wrap; gap:8px;">
-                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:rgba(148, 163, 184, 0.12); border:1px solid rgba(148, 163, 184, 0.32); border-radius:999px; font-size:0.92rem; color:inherit;">
-                        {html.escape(version_text(lang))}
-                    </span>
-                    <span style="display:inline-block; padding:0.35rem 0.75rem; background:rgba(148, 163, 184, 0.12); border:1px solid rgba(148, 163, 184, 0.32); border-radius:999px; font-size:0.92rem; color:inherit;">
-                        {html.escape(t(lang, 'contact_label'))}: <a href="mailto:{html.escape(CONTACT_EMAIL)}">{html.escape(CONTACT_EMAIL)}</a>
-                    </span>
+            <div style="text-align:center; padding-top:2px;">
+                <h1 class="app-header-title">{html.escape(t(lang, 'app_title'))}</h1>
+                <div class="app-header-subtitle">{html.escape(t(lang, 'app_subtitle'))}</div>
+                <div class="app-header-authors">{html.escape(t(lang, 'affiliation_heading'))}: {html.escape(authors_text)}</div>
+                <div class="app-header-affiliations">{affiliation_lines}</div>
+                <div class="app-header-pills">
+                    <span class="app-pill">{html.escape(version_text(lang))}</span>
+                    <span class="app-pill">{html.escape(t(lang, 'contact_label'))}: <a href="mailto:{html.escape(CONTACT_EMAIL)}">{html.escape(CONTACT_EMAIL)}</a></span>
                 </div>
             </div>
             """,
@@ -1129,12 +1259,32 @@ def render_header(lang: str):
             st.session_state["lang"] = new_lang
             sync_query_params(new_lang, st.session_state.get("selected_model"))
             st.rerun()
-        render_auth_controls(lang)
+
+
+def render_inline_model_selector(model_key: str, lang: str):
+    """A main-page model selector so phone users do not need to open the collapsed sidebar."""
+    model_keys = list(MODELS.keys())
+    if model_key not in model_keys:
+        model_key = model_keys[0]
+    with st.container(border=True):
+        st.markdown(f"**{t(lang, 'choose_model')}**")
+        selected = st.selectbox(
+            t(lang, "choose_model"),
+            options=model_keys,
+            index=model_keys.index(model_key),
+            format_func=lambda key: model_short_name(key, lang),
+            label_visibility="collapsed",
+            key=f"inline_model_selector_{lang}_{model_key}",
+        )
+        if selected != model_key:
+            st.session_state["pending_model_switch"] = selected
+            sync_query_params(lang, selected)
+            st.rerun()
 
 
 def render_guidance(lang: str):
-    with st.container(border=True):
-        st.markdown(f"**{t(lang, 'guide_title')}**")
+    # Collapsed by default to save vertical space on phones. Users can still open it when needed.
+    with st.expander(t(lang, 'guide_title'), expanded=False):
         st.markdown(f"- {t(lang, 'guide_point_1')}")
         st.markdown(f"- {t(lang, 'guide_point_2')}")
 
@@ -1633,9 +1783,12 @@ def main():
         st.markdown("---")
         st.warning(t(lang, "research_warning"))
         st.caption(f"{version_text(lang)} · {contact_text(lang)}")
+        st.markdown("---")
+        render_auth_controls(lang)
 
     render_header(lang)
     st.divider()
+    render_inline_model_selector(model_key, lang)
     render_guidance(lang)
 
     input_col, summary_col = st.columns([1.15, 0.85], gap="large")
